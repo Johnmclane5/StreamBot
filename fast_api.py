@@ -53,7 +53,7 @@ def get_file_properties(message):
 
 @api.get("/")
 async def root():
-    return JSONResponse({"message": "👋 Hello! Welcome"})
+    return JSONResponse({"message": "👋 Hola Amigo!"})
 
 
 async def get_file_stream(channel_id, message_id, request: Request):
