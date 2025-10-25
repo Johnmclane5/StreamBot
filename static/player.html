@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>File Details</title>
+
+    <!-- Bootstrap for the info panel -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <!-- Artplayer CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.css">
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            background-color: #f8f9fa;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            overflow: hidden; /* Prevent page scroll */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .wrapper {
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Player on top */
+        .player-box {
+            background: #000;
+            border-radius: .5rem;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* Size like example: max 48% width on wide screens, responsive */
+        .player-aspect {
+            width: 100%;
+            max-width: 48%;
+            aspect-ratio: 16 / 9;
+            min-height: 160px; /* usable on very small screens */
+            margin: 0 auto;
+            display: block;
+            padding: 10px 0;
+        }
+
+        .artplayer-app {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Info + buttons at bottom */
+        .info-container {
+            width: 100%;
+            background: #fff;
+            border-radius: .25rem;
+            box-shadow: 0 0 20px rgba(0,0,0,0.08);
+            padding: 1rem 1.25rem;
+            text-align: center;
+            word-wrap: break-word;
+            align-self: center;
+            max-width: 900px;
+        }
+
+        #file-name {
+            margin: 0;
+            font-size: 1.25rem;
+            word-break: break-word;
+            white-space: normal;
+        }
+
+        #file-size {
+            margin: .25rem 0 0;
+            color: #6c757d;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: .5rem;
+            margin-top: .75rem;
+        }
+
+        @media (max-width: 992px) {
+            #file-name { font-size: 1rem; }
+            .wrapper { padding: .5rem; }
+            .player-aspect { max-width: 80%; padding-bottom: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <!-- player on top -->
+        <div class="player-box" aria-label="Video player">
+            <div class="player-aspect">
+                <div class="artplayer-app"></div>
+            </div>
+        </div>
+
+        <!-- info + buttons at bottom -->
+        <div class="info-container">
+            <h3 id="file-name" title=""></h3>
+            <p id="file-size"></p>
+
+            <div class="button-group">
+                <a id="download-btn" class="btn btn-primary" href="#" download>Download</a>
+                <a id="mx-player-btn" class="btn btn-secondary" href="#" target="_blank">Play in MX Player</a>
+                <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // last segment (token)
+            const rawFileLink = window.location.pathname.split('/').pop() || '';
+            // encode so special chars are safe in URLs
+            const fileLink = encodeURIComponent(rawFileLink);
+            const streamUrl = `/stream/${fileLink}`;
+
+            // buttons (use encoded fileLink so paths are safe)
+            const downloadBtn = document.getElementById('download-btn');
+            downloadBtn.href = `/download/${fileLink}`;
+
+            const mxPlayerBtn = document.getElementById('mx-player-btn');
+            mxPlayerBtn.href = `/play/mx/${fileLink}`;
+
+            const mxProBtn = document.getElementById('mx-pro-btn');
+            mxProBtn.href = `/play/mxpro/${fileLink}`;
+
+            // fetch details and populate UI + init player
+            fetch(`/details/${fileLink}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load details');
+                    return response.json();
+                })
+                .then(data => {
+                    const fileNameElement = document.getElementById('file-name');
+                    fileNameElement.innerText = data.file_name || decodeURIComponent(rawFileLink);
+                    fileNameElement.title = data.file_name || decodeURIComponent(rawFileLink);
+
+                    document.getElementById('file-size').innerText = data.file_size || '';
+
+                    const playerOptions = {
+                        container: '.artplayer-app',
+                        url: streamUrl,
+                        title: data.file_name || decodeURIComponent(rawFileLink),
+                        autoplay: true,
+                        autoSize: true,
+                        playsInline: true,
+                        // enable both native fullscreen and web fullscreen control
+                        fullscreen: true,
+                        fullscreenWeb: true,
+                        subtitle: {}
+                    };
+
+                    if (data.subtitle_url) {
+                        playerOptions.subtitle = {
+                            url: data.subtitle_url,
+                            type: data.subtitle_type || 'srt',
+                            encoding: data.subtitle_encoding || 'utf-8',
+                            default: true,
+                            escape: false,
+                        };
+                    }
+
+                    // instantiate Artplayer
+                    new Artplayer(playerOptions);
+                })
+                .catch(err => {
+                    console.error('Error fetching video details:', err);
+                    // fallback UI + player
+                    document.getElementById('file-name').innerText = decodeURIComponent(rawFileLink) || 'Video';
+                    new Artplayer({
+                        container: '.artplayer-app',
+                        url: streamUrl,
+                        title: decodeURIComponent(rawFileLink) || 'Video',
+                        autoplay: true,
+                        autoSize: true,
+                        playsInline: true,
+                        fullscreen: true,
+                        fullscreenWeb: true
+                    });
+                });
+        });
+    </script>
+</body>
+        </html>
+    
