@@ -8,16 +8,12 @@ from pyrogram.types import Message
 from config import OWNER_ID
 from app import bot
 
-@bot.on_message(filters.command("restart") & filters.user(OWNER_ID))
-async def restart_command(client: Client, message: Message):
+@bot.on_message(filters.command('restart') & filters.private & filters.user(OWNER_ID))
+async def restart(client, message):
     await message.delete()
-    try:
-        subprocess.run([sys.executable, "update.py"], check=True)
-    except subprocess.CalledProcessError as e:
-        await message.reply_text(f"Update failed: {e}")
-        return
-    logging.info("Restarting bot...")
-    os.execl(sys.executable, sys.executable, "-m", "bot")
+    # 🔄 Restart logic
+    os.system("python3 update.py")
+    os.execl(sys.executable, sys.executable, "bot.py")
 
 @bot.on_message(filters.command("log") & filters.private & filters.user(OWNER_ID))
 async def send_log_file(client, message: Message):
