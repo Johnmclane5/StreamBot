@@ -177,12 +177,9 @@ async def serve_subtitle(file_link: str, request: Request):
     }
     return StreamingResponse(media_streamer(), headers=headers)
 
-
 @api.get("/player/{file_link}")
 async def play_video(file_link: str):
     return FileResponse(f"static/player.html")
-
-
 
 @api.get("/details/{file_link}")
 async def get_file_details(file_link: str):
@@ -225,8 +222,8 @@ async def play_in_player(player: str, file_link: str):
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end"
     elif player == "mxpro":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.pro;end"
-    elif player == "vlc":
-        redirect_url = f"vlc://{stream_url}"
+    elif player == "stream":
+        redirect_url = f"{stream_url}"
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
     return RedirectResponse(url=redirect_url, status_code=302)
