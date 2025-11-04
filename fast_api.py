@@ -154,7 +154,7 @@ async def stream_file(file_link: str, request: Request):
     }
     return StreamingResponse(media_streamer(), status_code=206 if start > 0 else 200, headers=headers)
 
-
+'''
 @api.get("/download/{file_link}")
 async def download_file(file_link: str, request: Request):
     channel_id, message_id = decode_file_link(file_link)
@@ -165,7 +165,7 @@ async def download_file(file_link: str, request: Request):
         "Content-Length": str(file_size),
     }
     return StreamingResponse(media_streamer(), headers=headers)
-
+'''
 
 @api.get("/subtitle/{file_link}")
 async def serve_subtitle(file_link: str, request: Request):
@@ -222,7 +222,7 @@ async def get_file_details(file_link: str):
 @api.get("/play/{player}/{file_link}")
 async def play_in_player(player: str, file_link: str):
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
-
+    encoded = urllib.parse.quote(stream_url, safe='')
     # --- MX Player (free) ---
     if player == "mx":
         redirect_url = (
@@ -247,7 +247,7 @@ async def play_in_player(player: str, file_link: str):
 
     # --- VLC (Desktop) ---
     elif player == "vlc":
-        vlc_link = f"vlc://{stream_url}"
+        vlc_link = f"vlc://{encoded}"
         html = f"""
         <!DOCTYPE html>
         <html>

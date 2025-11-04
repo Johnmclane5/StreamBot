@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>File Details</title>
 
     <!-- Bootstrap for the info panel -->
@@ -12,12 +13,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.css">
 
     <style>
-        html, body {
+        html,
+        body {
             height: 100%;
             margin: 0;
             background-color: #f8f9fa;
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-            overflow: hidden; /* Prevent page scroll */
+            overflow: hidden;
+            /* Prevent page scroll */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -41,7 +44,7 @@
             background: #000;
             border-radius: .5rem;
             overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -53,7 +56,8 @@
             width: 100%;
             max-width: 48%;
             aspect-ratio: 16 / 9;
-            min-height: 160px; /* usable on very small screens */
+            min-height: 160px;
+            /* usable on very small screens */
             margin: 0 auto;
             display: block;
             padding: 10px 0;
@@ -69,7 +73,7 @@
             width: 100%;
             background: #fff;
             border-radius: .25rem;
-            box-shadow: 0 0 20px rgba(0,0,0,0.08);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
             padding: 1rem 1.25rem;
             text-align: center;
             word-wrap: break-word;
@@ -98,12 +102,22 @@
         }
 
         @media (max-width: 992px) {
-            #file-name { font-size: 1rem; }
-            .wrapper { padding: .5rem; }
-            .player-aspect { max-width: 80%; padding-bottom: 8px; }
+            #file-name {
+                font-size: 1rem;
+            }
+
+            .wrapper {
+                padding: .5rem;
+            }
+
+            .player-aspect {
+                max-width: 80%;
+                padding-bottom: 8px;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="wrapper">
         <!-- player on top -->
@@ -119,7 +133,7 @@
             <p id="file-size"></p>
 
             <div class="button-group">
-                <a id="download-btn" class="btn btn-primary" href="#" download>Download</a>
+                <!-- <a id="download-btn" class="btn btn-primary" href="#" download>Download</a> -->
                 <a id="mx-player-btn" class="btn btn-secondary" href="#" target="_blank">Play in MX Player</a>
                 <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
                 <a id="vlc-btn" class="btn btn-warning" href="#" target="_blank">Play in VLC</a>
@@ -129,7 +143,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // last segment (token)
             const rawFileLink = window.location.pathname.split('/').pop() || '';
             // encode so special chars are safe in URLs
@@ -137,8 +151,8 @@
             const streamUrl = `/stream/${fileLink}`;
 
             // buttons (use encoded fileLink so paths are safe)
-            const downloadBtn = document.getElementById('download-btn');
-            downloadBtn.href = `/download/${fileLink}`;
+            // const downloadBtn = document.getElementById('download-btn');
+            // downloadBtn.href = `/download/${fileLink}`;
 
             const mxPlayerBtn = document.getElementById('mx-player-btn');
             mxPlayerBtn.href = `/play/mx/${fileLink}`;
@@ -206,5 +220,5 @@
         });
     </script>
 </body>
-        </html>
-    
+
+</html>
