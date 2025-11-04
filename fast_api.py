@@ -5,7 +5,7 @@ import mimetypes
 import os
 import logging
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse
+from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pyrogram.errors import ChannelInvalid
 from starlette.status import HTTP_404_NOT_FOUND
@@ -219,16 +219,81 @@ async def get_file_details(file_link: str):
         "subtitle_url": subtitle_url
     })
 
-
 @api.get("/play/{player}/{file_link}")
 async def play_in_player(player: str, file_link: str):
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
+
+    # --- MX Player (free) ---
     if player == "mx":
-        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end"
+        redirect_url = (
+            f"intent:{stream_url}#Intent;"
+            f"action=android.intent.action.VIEW;"
+            f"type=video/*;"
+            f"package=com.mxtech.videoplayer.ad;"
+            f"end"
+        )
+        return RedirectResponse(url=redirect_url, status_code=302)
+
+    # --- MX Player Pro ---
     elif player == "mxpro":
-        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.pro;end"
+        redirect_url = (
+            f"intent:{stream_url}#Intent;"
+            f"action=android.intent.action.VIEW;"
+            f"type=video/*;"
+            f"package=com.mxtech.videoplayer.pro;"
+            f"end"
+        )
+        return RedirectResponse(url=redirect_url, status_code=302)
+
+    # --- VLC (Desktop) ---
     elif player == "vlc":
-        redirect_url = f"vlc://{stream_url}"
+        vlc_link = f"vlc://{stream_url}"
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Open in VLC</title>
+            <script>
+                // Try to auto-open VLC after a short delay
+                setTimeout(function() {{
+                    window.location.href = "{vlc_link}";
+                }}, 500);
+
+                // If blocked, fallback link will still be visible
+            </script>
+            <style>
+                body {{
+                    font-family: system-ui, sans-serif;
+                    text-align: center;
+                    margin-top: 10%;
+                    color: #222;
+                }}
+                a {{
+                    font-size: 1.2rem;
+                    color: #0066cc;
+                    text-decoration: none;
+                }}
+                a:hover {{
+                    text-decoration: underline;
+                }}
+                .note {{
+                    color: gray;
+                    font-size: 0.9rem;
+                    margin-top: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <h2>🎬 Open in VLC Player</h2>
+            <p>If VLC doesn't open automatically, click below:</p>
+            <p><a href="{vlc_link}">Open Stream in VLC</a></p>
+            <p class="note">If nothing happens, make sure VLC is installed and set to handle <code>vlc://</code> links.</p>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html)
+
+    # --- Unsupported player ---
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
-    return RedirectResponse(url=redirect_url, status_code=302)
