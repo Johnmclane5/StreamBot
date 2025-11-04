@@ -142,3 +142,4 @@ cython_debug/
 # Log files
 *.log
 bot_log.txt
+cache/
