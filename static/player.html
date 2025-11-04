@@ -122,6 +122,7 @@
                 <a id="download-btn" class="btn btn-primary" href="#" download>Download</a>
                 <a id="mx-player-btn" class="btn btn-secondary" href="#" target="_blank">Play in MX Player</a>
                 <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
+                <a id="vlc-btn" class="btn btn-warning" href="#" target="_blank">Play in VLC</a>
             </div>
         </div>
     </div>
@@ -144,6 +145,9 @@
 
             const mxProBtn = document.getElementById('mx-pro-btn');
             mxProBtn.href = `/play/mxpro/${fileLink}`;
+
+            const vlcBtn = document.getElementById('vlc-btn');
+            vlcBtn.href = `/play/vlc/${fileLink}`;
 
             // fetch details and populate UI + init player
             fetch(`/details/${fileLink}`)
