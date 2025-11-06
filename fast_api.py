@@ -216,16 +216,25 @@ async def get_file_details(file_link: str):
         "subtitle_url": subtitle_url
     })
 
+@api.get("/play/vlc/{file_link}")
+async def play_vlc(file_link: str):
+    stream_url = f"{MY_DOMAIN}/stream/{file_link}"
+    m3u_content = f"#EXTM3U\n#EXTINF:-1,{file_link}\n{stream_url}"
+    return PlainTextResponse(
+        content=m3u_content,
+        media_type="audio/x-mpegurl"
+    )
+
 @api.get("/play/{player}/{file_link}")
 async def play_in_player(player: str, file_link: str):
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
-    encoded_url = quote(f"{MY_DOMAIN}/stream/{file_link}", safe='')
     if player == "mx":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end"
     elif player == "mxpro":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.pro;end"
     elif player == "vlcpc":
-        redirect_url = f"vlc://open,{encoded_url}"
+        redirect_url = f"{MY_DOMAIN}/play/vlc/{file_link}"
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
     return RedirectResponse(url=redirect_url, status_code=302)
+
