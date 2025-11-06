@@ -115,6 +115,7 @@
                 padding-bottom: 8px;
             }
         }
+
         .art-subtitle {
             opacity: 1 !important;
             display: block !important;
@@ -189,9 +190,7 @@
                         autoplay: false,
                         autoSize: true,
                         playsInline: true,
-                        // enable both native fullscreen and web fullscreen control
                         fullscreen: true,
-                        fullscreenWeb: true,
                         subtitle: {}
                     };
 
@@ -218,11 +217,8 @@
                         title: decodeURIComponent(rawFileLink) || 'Video',
                         autoplay: true,
                         autoSize: true,
-                        aspectRatio: true,
                         playsInline: true,
                         fullscreen: true,
-                        miniProgressBar: true,
-                        fastForward: true,
                     });
                 });
         });
