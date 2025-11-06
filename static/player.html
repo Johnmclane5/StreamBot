@@ -189,6 +189,8 @@
                         autoSize: true,
                         playsInline: true,
                         fullscreen: true,
+                        miniProgressBar: true,
+                        fastForward: true,
                         subtitle: {}
                     };
 
@@ -199,6 +201,10 @@
                             encoding: data.subtitle_encoding || 'utf-8',
                             default: true,
                             escape: false,
+                            style: {
+                                color: '#03A9F4',
+                                'font-size': '50px',
+                            },
                         };
                     }
 
@@ -213,12 +219,14 @@
                         container: '.artplayer-app',
                         url: streamUrl,
                         title: decodeURIComponent(rawFileLink) || 'Video',
-                        autoplay: true,
+                        autoplay: false,
                         autoSize: true,
                         playsInline: true,
                         fullscreen: true,
                         miniProgressBar: true,
-                         fastForward: true,
+                        fastForward: true,
+                        setting: true,
+                        autoOrientation: true,
                     });
                 });
         });
