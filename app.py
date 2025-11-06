@@ -39,7 +39,7 @@ bot = Bot(
 
 # Initialize worker bots
 worker_bots = [
-    Client(f"worker_{i}", api_id=API_ID, api_hash=API_HASH, bot_token=token, timeout=60, no_updates=True)
+    Client(f"worker_{i}", api_id=API_ID, api_hash=API_HASH, bot_token=token, sleep_threshold=60, no_updates=True)
     for i, token in enumerate(WORKER_BOT_TOKENS)
 ]
 
