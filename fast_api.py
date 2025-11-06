@@ -6,7 +6,7 @@ import os
 import logging
 from urllib.parse import quote
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse, HTMLResponse
+from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pyrogram.errors import ChannelInvalid
 from starlette.status import HTTP_404_NOT_FOUND
