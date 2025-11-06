@@ -116,6 +116,7 @@
             }
         }
 
+        /* Keep subtitles visible even when controls are hidden */
         .art-subtitle {
             opacity: 1 !important;
             display: block !important;
@@ -167,9 +168,6 @@
             const mxProBtn = document.getElementById('mx-pro-btn');
             mxProBtn.href = `/play/mxpro/${fileLink}`;
 
-            const vlcBtn = document.getElementById('vlc-btn');
-            vlcBtn.href = `/play/vlcpc/${fileLink}`;
-
             // fetch details and populate UI + init player
             fetch(`/details/${fileLink}`)
                 .then(response => {
@@ -219,6 +217,8 @@
                         autoSize: true,
                         playsInline: true,
                         fullscreen: true,
+                        miniProgressBar: true,
+                         fastForward: true,
                     });
                 });
         });
