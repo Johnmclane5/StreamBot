@@ -6,11 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>File Details</title>
 
-    <!-- Bootstrap for the info panel -->
+    <!-- Bootstrap -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-
-    <!-- Artplayer CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.css">
 
     <style>
         html,
@@ -20,10 +17,10 @@
             background-color: #f8f9fa;
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
             overflow: hidden;
-            /* Prevent page scroll */
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         .wrapper {
@@ -39,7 +36,6 @@
             justify-content: center;
         }
 
-        /* Player on top */
         .player-box {
             background: #000;
             border-radius: .5rem;
@@ -51,16 +47,15 @@
             width: 100%;
         }
 
-        /* Size like example: max 48% width on wide screens, responsive */
         .player-aspect {
             width: 100%;
             max-width: 48%;
             aspect-ratio: 16 / 9;
             min-height: 160px;
-            /* usable on very small screens */
             margin: 0 auto;
             display: block;
             padding: 10px 0;
+            position: relative;
         }
 
         .artplayer-app {
@@ -68,7 +63,6 @@
             height: 100%;
         }
 
-        /* Info + buttons at bottom */
         .info-container {
             width: 100%;
             background: #fff;
@@ -79,6 +73,7 @@
             word-wrap: break-word;
             align-self: center;
             max-width: 900px;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         #file-name {
@@ -101,6 +96,23 @@
             margin-top: .75rem;
         }
 
+        .recommend-note {
+            font-size: 0.9rem;
+            color: #17a2b8;
+            margin-top: .75rem;
+            font-style: italic;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+        }
+
         @media (max-width: 992px) {
             #file-name {
                 font-size: 1rem;
@@ -116,7 +128,6 @@
             }
         }
 
-        /* Keep subtitles visible even when controls are hidden */
         .art-subtitle {
             opacity: 1 !important;
             display: block !important;
@@ -124,243 +135,195 @@
             pointer-events: none !important;
             transition: none !important;
         }
+
+        /* 🌙 Dark Theme */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #121212;
+                color: #e0e0e0;
+            }
+
+            .info-container {
+                background: #1e1e1e;
+                color: #e0e0e0;
+                box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+            }
+
+            #file-size {
+                color: #9e9e9e;
+            }
+
+            .btn-info {
+                background-color: #17a2b8;
+                border-color: #17a2b8;
+            }
+
+            .recommend-note {
+                color: #4dd0e1;
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="wrapper">
-        <!-- player on top -->
         <div class="player-box" aria-label="Video player">
             <div class="player-aspect">
-                <div class="artplayer-app"></div>
+                <div class="artplayer-app">
+                    <div class="loading" id="loading">Loading video...</div>
+                </div>
             </div>
         </div>
 
-        <!-- info + buttons at bottom -->
         <div class="info-container">
             <h3 id="file-name" title=""></h3>
             <p id="file-size"></p>
 
             <div class="button-group">
-                <!-- <a id="download-btn" class="btn btn-primary" href="#" download>Download</a> -->
                 <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player</a>
                 <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
                 <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
             </div>
+
+            <p class="recommend-note">
+                💡 Recommended: Use MX Player / VLC for subtitle and dual audio support.
+            </p>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js"></script>
-    <!-- NoSleep fallback (used when the Wake Lock API isn't supported) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // last segment (token)
+    <!-- Script: deferred for better performance -->
+    <script defer>
+        (async () => {
             const rawFileLink = window.location.pathname.split('/').pop() || '';
-            // encode so special chars are safe in URLs
             const fileLink = encodeURIComponent(rawFileLink);
             const streamUrl = `/stream/${fileLink}`;
+            const loadingEl = document.getElementById('loading');
+            const infoContainer = document.querySelector('.info-container');
 
-            // buttons (use encoded fileLink so paths are safe)
-            // const downloadBtn = document.getElementById('download-btn');
-            // downloadBtn.href = `/download/${fileLink}`;
+            const setButtonLinks = () => {
+                document.getElementById('mx-player-btn').href = `/play/mx/${fileLink}`;
+                document.getElementById('mx-pro-btn').href = `/play/mxpro/${fileLink}`;
+                document.getElementById('vlc-btn').href = `/play/vlc/${fileLink}`;
+            };
 
-            const mxPlayerBtn = document.getElementById('mx-player-btn');
-            mxPlayerBtn.href = `/play/mx/${fileLink}`;
+            const showError = (message) => {
+                infoContainer.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+            };
 
-            const mxProBtn = document.getElementById('mx-pro-btn');
-            mxProBtn.href = `/play/mxpro/${fileLink}`;
-
-            const vlcPlayerBtn = document.getElementById('vlc-btn');
-            vlcPlayerBtn.href = `/play/vlc/${fileLink}`;
-
-            // Wake lock & NoSleep setup
             let wakeLock = null;
             let noSleep = null;
-            if (typeof NoSleep !== 'undefined') {
-                try {
-                    noSleep = new NoSleep();
-                } catch (e) {
-                    noSleep = null;
-                }
-            }
 
-            async function requestWakeLock() {
-                // Prefer Wake Lock API if available
+            const requestWakeLock = async () => {
                 if ('wakeLock' in navigator) {
                     try {
                         wakeLock = await navigator.wakeLock.request('screen');
-                        // Release on unexpected release by the UA (the 'release' event can be attached on some browsers)
-                        if (wakeLock && typeof wakeLock.addEventListener === 'function') {
-                            wakeLock.addEventListener('release', () => {
-                                wakeLock = null;
-                            });
-                        }
-                        console.log('Wake Lock is active');
-                        return;
+                        wakeLock.addEventListener('release', () => (wakeLock = null));
                     } catch (err) {
                         console.warn('Wake Lock request failed:', err);
-                        wakeLock = null;
                     }
-                }
-
-                // Fallback to NoSleep.js (creates a tiny playing video to keep screen awake)
-                if (noSleep) {
+                } else if (noSleep) {
                     try {
-                        noSleep.enable(); // requires user gesture (play) — we call this from a play handler
-                        console.log('NoSleep enabled');
+                        noSleep.enable();
                     } catch (err) {
                         console.warn('NoSleep enable failed:', err);
                     }
                 }
-            }
+            };
 
-            async function releaseWakeLock() {
+            const releaseWakeLock = async () => {
                 if (wakeLock) {
                     try {
                         await wakeLock.release();
-                    } catch (err) {
-                        console.warn('Wake Lock release failed:', err);
-                    }
+                    } catch { }
                     wakeLock = null;
                 }
                 if (noSleep) {
                     try {
                         noSleep.disable();
-                    } catch (err) {
-                        console.warn('NoSleep disable failed:', err);
-                    }
+                    } catch { }
                 }
-            }
+            };
 
-            // fetch details and populate UI + init player
-            fetch(`/details/${fileLink}`)
-                .then(response => {
-                    if (!response.ok) throw new Error('Failed to load details');
-                    return response.json();
-                })
-                .then(data => {
-                    const fileNameElement = document.getElementById('file-name');
-                    fileNameElement.innerText = data.file_name || decodeURIComponent(rawFileLink);
-                    fileNameElement.title = data.file_name || decodeURIComponent(rawFileLink);
-
-                    document.getElementById('file-size').innerText = data.file_size || '';
-
-                    const playerOptions = {
-                        container: '.artplayer-app',
-                        url: streamUrl,
-                        title: data.file_name || decodeURIComponent(rawFileLink),
-                        autoplay: false,
-                        autoSize: true,
-                        playsInline: true,
-                        fullscreen: true,
-                        miniProgressBar: true,
-                        fastForward: true,
-                        subtitle: {}
-                    };
-
-                    if (data.subtitle_url) {
-                        playerOptions.subtitle = {
-                            url: data.subtitle_url,
-                            type: data.subtitle_type || 'srt',
-                            encoding: data.subtitle_encoding || 'utf-8',
-                            default: true,
-                            escape: false,
-                            style: {
-                                color: '#FFFFFF',
-                                fontSize: '25px',
-                                fontWeight: 'bold'
-                            },
-                        };
+            const attachWakeLockHandlers = (player) => {
+                player.on('play', async () => await requestWakeLock());
+                player.on('pause', async () => await releaseWakeLock());
+                document.addEventListener('visibilitychange', async () => {
+                    const videoEl = document.querySelector('.artplayer-app video');
+                    const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
+                    if (document.visibilityState === 'visible' && isPlaying && !wakeLock) {
+                        await requestWakeLock();
+                    } else {
+                        await releaseWakeLock();
                     }
-
-                    // instantiate Artplayer
-                    const player = new Artplayer(playerOptions);
-
-                    // Attach event handlers to keep screen awake while playing
-                    player.on && player.on('play', async () => {
-                        // request wake lock on play (must be called following user gesture to work on many devices)
-                        await requestWakeLock();
-                    });
-
-                    player.on && player.on('pause', async () => {
-                        // release wake lock when paused
-                        await releaseWakeLock();
-                    });
-
-                    // If the page becomes hidden (user switches apps), some browsers automatically release the wake lock.
-                    // Re-request it when visible again (if video is playing).
-                    document.addEventListener('visibilitychange', async () => {
-                        try {
-                            if (document.visibilityState === 'visible') {
-                                // If playing and no wake lock, try to re-acquire
-                                const videoEl = document.querySelector('.artplayer-app video');
-                                const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
-                                if (isPlaying && !wakeLock) {
-                                    await requestWakeLock();
-                                }
-                            } else {
-                                // On hidden, release wake lock to be polite
-                                await releaseWakeLock();
-                            }
-                        } catch (e) {
-                            console.warn('Visibility change wake-lock handling error:', e);
-                        }
-                    });
-
-                    // Cleanup on unload
-                    window.addEventListener('beforeunload', async () => {
-                        await releaseWakeLock();
-                    });
-                })
-                .catch(err => {
-                    console.error('Error fetching video details:', err);
-                    // fallback UI + player
-                    document.getElementById('file-name').innerText = decodeURIComponent(rawFileLink) || 'Video';
-                    const fallbackPlayer = new Artplayer({
-                        container: '.artplayer-app',
-                        url: streamUrl,
-                        title: decodeURIComponent(rawFileLink) || 'Video',
-                        autoplay: false,
-                        autoSize: true,
-                        playsInline: true,
-                        fullscreen: true,
-                        miniProgressBar: true,
-                        setting: true,
-                        autoOrientation: true,
-                        hotkey: true,
-                    });
-
-                    // Attach same wake-lock/pause handlers for fallback player
-                    fallbackPlayer.on && fallbackPlayer.on('play', async () => {
-                        await requestWakeLock();
-                    });
-                    fallbackPlayer.on && fallbackPlayer.on('pause', async () => {
-                        await releaseWakeLock();
-                    });
-
-                    document.addEventListener('visibilitychange', async () => {
-                        try {
-                            if (document.visibilityState === 'visible') {
-                                const videoEl = document.querySelector('.artplayer-app video');
-                                const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
-                                if (isPlaying && !wakeLock) {
-                                    await requestWakeLock();
-                                }
-                            } else {
-                                await releaseWakeLock();
-                            }
-                        } catch (e) {
-                            console.warn('Visibility change wake-lock handling error:', e);
-                        }
-                    });
-
-                    window.addEventListener('beforeunload', async () => {
-                        await releaseWakeLock();
-                    });
                 });
-        });
+                window.addEventListener('beforeunload', async () => await releaseWakeLock());
+            };
+
+            const initPlayer = async (data) => {
+                loadingEl.style.display = 'none';
+                await Promise.all([
+                    import('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js'),
+                    import('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js'),
+                ]);
+
+                if (typeof NoSleep !== 'undefined') {
+                    try { noSleep = new NoSleep.default(); } catch { }
+                }
+
+                const playerOptions = {
+                    container: '.artplayer-app',
+                    url: streamUrl,
+                    title: data.file_name || decodeURIComponent(rawFileLink),
+                    autoplay: false,
+                    autoSize: true,
+                    playsInline: true,
+                    fullscreen: true,
+                    miniProgressBar: true,
+                    fastForward: true,
+                    subtitle: {},
+                };
+
+                if (data.subtitle_url) {
+                    playerOptions.subtitle = {
+                        url: data.subtitle_url,
+                        type: data.subtitle_type || 'srt',
+                        encoding: data.subtitle_encoding || 'utf-8',
+                        default: true,
+                        style: { color: '#FFFFFF', fontSize: '21px', fontWeight: 'bold' },
+                    };
+                }
+
+                const player = new Artplayer(playerOptions);
+                attachWakeLockHandlers(player);
+
+                // Resume playback feature
+                const resumeKey = `resumeTime_${fileLink}`;
+                player.on('ready', () => {
+                    const savedTime = localStorage.getItem(resumeKey);
+                    if (savedTime) player.currentTime = parseFloat(savedTime);
+                });
+                player.on('timeupdate', () => {
+                    localStorage.setItem(resumeKey, player.currentTime);
+                });
+            };
+
+            setButtonLinks();
+
+            try {
+                const response = await fetch(`/details/${fileLink}`);
+                if (!response.ok) throw new Error('Failed to load details');
+                const data = await response.json();
+
+                document.getElementById('file-name').innerText = data.file_name || decodeURIComponent(rawFileLink);
+                document.getElementById('file-size').innerText = data.file_size || '';
+
+                await initPlayer(data);
+            } catch (err) {
+                console.error('Error fetching video details:', err);
+                showError('Failed to load video details. Please try again later.');
+                await initPlayer({});
+            }
+        })();
     </script>
 </body>
 
