@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Details</title>
+
+    <!-- Bootstrap for the info panel -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <!-- Artplayer CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.css">
+
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background-color: #f8f9fa;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            overflow: hidden;
+            /* Prevent page scroll */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .wrapper {
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Player on top */
+        .player-box {
+            background: #000;
+            border-radius: .5rem;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* Size like example: max 48% width on wide screens, responsive */
+        .player-aspect {
+            width: 100%;
+            max-width: 48%;
+            aspect-ratio: 16 / 9;
+            min-height: 160px;
+            /* usable on very small screens */
+            margin: 0 auto;
+            display: block;
+            padding: 10px 0;
+        }
+
+        .artplayer-app {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Info + buttons at bottom */
+        .info-container {
+            width: 100%;
+            background: #fff;
+            border-radius: .25rem;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+            padding: 1rem 1.25rem;
+            text-align: center;
+            word-wrap: break-word;
+            align-self: center;
+            max-width: 900px;
+        }
+
+        #file-name {
+            margin: 0;
+            font-size: 1.25rem;
+            word-break: break-word;
+            white-space: normal;
+        }
+
+        #file-size {
+            margin: .25rem 0 0;
+            color: #6c757d;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: .5rem;
+            margin-top: .75rem;
+        }
+
+        @media (max-width: 992px) {
+            #file-name {
+                font-size: 1rem;
+            }
+
+            .wrapper {
+                padding: .5rem;
+            }
+
+            .player-aspect {
+                max-width: 80%;
+                padding-bottom: 8px;
+            }
+        }
+
+        /* Keep subtitles visible even when controls are hidden */
+        .art-subtitle {
+            opacity: 1 !important;
+            display: block !important;
+            visibility: visible !important;
+            pointer-events: none !important;
+            transition: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <!-- player on top -->
+        <div class="player-box" aria-label="Video player">
+            <div class="player-aspect">
+                <div class="artplayer-app"></div>
+            </div>
+        </div>
+
+        <!-- info + buttons at bottom -->
+        <div class="info-container">
+            <h3 id="file-name" title=""></h3>
+            <p id="file-size"></p>
+
+            <div class="button-group">
+                <!-- <a id="download-btn" class="btn btn-primary" href="#" download>Download</a> -->
+                <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player</a>
+                <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
+                <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js"></script>
+    <!-- NoSleep fallback (used when the Wake Lock API isn't supported) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // last segment (token)
+            const rawFileLink = window.location.pathname.split('/').pop() || '';
+            // encode so special chars are safe in URLs
+            const fileLink = encodeURIComponent(rawFileLink);
+            const streamUrl = `/stream/${fileLink}`;
+
+            // buttons (use encoded fileLink so paths are safe)
+            // const downloadBtn = document.getElementById('download-btn');
+            // downloadBtn.href = `/download/${fileLink}`;
+
+            const mxPlayerBtn = document.getElementById('mx-player-btn');
+            mxPlayerBtn.href = `/play/mx/${fileLink}`;
+
+            const mxProBtn = document.getElementById('mx-pro-btn');
+            mxProBtn.href = `/play/mxpro/${fileLink}`;
+
+            const vlcPlayerBtn = document.getElementById('vlc-btn');
+            vlcPlayerBtn.href = `/play/vlc/${fileLink}`;
+
+            // Wake lock & NoSleep setup
+            let wakeLock = null;
+            let noSleep = null;
+            if (typeof NoSleep !== 'undefined') {
+                try {
+                    noSleep = new NoSleep();
+                } catch (e) {
+                    noSleep = null;
+                }
+            }
+
+            async function requestWakeLock() {
+                // Prefer Wake Lock API if available
+                if ('wakeLock' in navigator) {
+                    try {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        // Release on unexpected release by the UA (the 'release' event can be attached on some browsers)
+                        if (wakeLock && typeof wakeLock.addEventListener === 'function') {
+                            wakeLock.addEventListener('release', () => {
+                                wakeLock = null;
+                            });
+                        }
+                        console.log('Wake Lock is active');
+                        return;
+                    } catch (err) {
+                        console.warn('Wake Lock request failed:', err);
+                        wakeLock = null;
+                    }
+                }
+
+                // Fallback to NoSleep.js (creates a tiny playing video to keep screen awake)
+                if (noSleep) {
+                    try {
+                        noSleep.enable(); // requires user gesture (play) — we call this from a play handler
+                        console.log('NoSleep enabled');
+                    } catch (err) {
+                        console.warn('NoSleep enable failed:', err);
+                    }
+                }
+            }
+
+            async function releaseWakeLock() {
+                if (wakeLock) {
+                    try {
+                        await wakeLock.release();
+                    } catch (err) {
+                        console.warn('Wake Lock release failed:', err);
+                    }
+                    wakeLock = null;
+                }
+                if (noSleep) {
+                    try {
+                        noSleep.disable();
+                    } catch (err) {
+                        console.warn('NoSleep disable failed:', err);
+                    }
+                }
+            }
+
+            // fetch details and populate UI + init player
+            fetch(`/details/${fileLink}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to load details');
+                    return response.json();
+                })
+                .then(data => {
+                    const fileNameElement = document.getElementById('file-name');
+                    fileNameElement.innerText = data.file_name || decodeURIComponent(rawFileLink);
+                    fileNameElement.title = data.file_name || decodeURIComponent(rawFileLink);
+
+                    document.getElementById('file-size').innerText = data.file_size || '';
+
+                    const playerOptions = {
+                        container: '.artplayer-app',
+                        url: streamUrl,
+                        title: data.file_name || decodeURIComponent(rawFileLink),
+                        autoplay: false,
+                        autoSize: true,
+                        playsInline: true,
+                        fullscreen: true,
+                        miniProgressBar: true,
+                        fastForward: true,
+                        subtitle: {}
+                    };
+
+                    if (data.subtitle_url) {
+                        playerOptions.subtitle = {
+                            url: data.subtitle_url,
+                            type: data.subtitle_type || 'srt',
+                            encoding: data.subtitle_encoding || 'utf-8',
+                            default: true,
+                            escape: false,
+                            style: {
+                                color: '#FFFFFF',
+                                fontSize: '25px',
+                                fontWeight: 'bold'
+                            },
+                        };
+                    }
+
+                    // instantiate Artplayer
+                    const player = new Artplayer(playerOptions);
+
+                    // Attach event handlers to keep screen awake while playing
+                    player.on && player.on('play', async () => {
+                        // request wake lock on play (must be called following user gesture to work on many devices)
+                        await requestWakeLock();
+                    });
+
+                    player.on && player.on('pause', async () => {
+                        // release wake lock when paused
+                        await releaseWakeLock();
+                    });
+
+                    // If the page becomes hidden (user switches apps), some browsers automatically release the wake lock.
+                    // Re-request it when visible again (if video is playing).
+                    document.addEventListener('visibilitychange', async () => {
+                        try {
+                            if (document.visibilityState === 'visible') {
+                                // If playing and no wake lock, try to re-acquire
+                                const videoEl = document.querySelector('.artplayer-app video');
+                                const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
+                                if (isPlaying && !wakeLock) {
+                                    await requestWakeLock();
+                                }
+                            } else {
+                                // On hidden, release wake lock to be polite
+                                await releaseWakeLock();
+                            }
+                        } catch (e) {
+                            console.warn('Visibility change wake-lock handling error:', e);
+                        }
+                    });
+
+                    // Cleanup on unload
+                    window.addEventListener('beforeunload', async () => {
+                        await releaseWakeLock();
+                    });
+                })
+                .catch(err => {
+                    console.error('Error fetching video details:', err);
+                    // fallback UI + player
+                    document.getElementById('file-name').innerText = decodeURIComponent(rawFileLink) || 'Video';
+                    const fallbackPlayer = new Artplayer({
+                        container: '.artplayer-app',
+                        url: streamUrl,
+                        title: decodeURIComponent(rawFileLink) || 'Video',
+                        autoplay: false,
+                        autoSize: true,
+                        playsInline: true,
+                        fullscreen: true,
+                        miniProgressBar: true,
+                        setting: true,
+                        autoOrientation: true,
+                        hotkey: true,
+                    });
+
+                    // Attach same wake-lock/pause handlers for fallback player
+                    fallbackPlayer.on && fallbackPlayer.on('play', async () => {
+                        await requestWakeLock();
+                    });
+                    fallbackPlayer.on && fallbackPlayer.on('pause', async () => {
+                        await releaseWakeLock();
+                    });
+
+                    document.addEventListener('visibilitychange', async () => {
+                        try {
+                            if (document.visibilityState === 'visible') {
+                                const videoEl = document.querySelector('.artplayer-app video');
+                                const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
+                                if (isPlaying && !wakeLock) {
+                                    await requestWakeLock();
+                                }
+                            } else {
+                                await releaseWakeLock();
+                            }
+                        } catch (e) {
+                            console.warn('Visibility change wake-lock handling error:', e);
+                        }
+                    });
+
+                    window.addEventListener('beforeunload', async () => {
+                        await releaseWakeLock();
+                    });
+                });
+        });
+    </script>
+</body>
+
+</html>
