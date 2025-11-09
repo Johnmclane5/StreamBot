@@ -151,6 +151,9 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js"></script>
+    <!-- NoSleep fallback (used when the Wake Lock API isn't supported) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // last segment (token)
@@ -171,6 +174,65 @@
 
             const vlcPlayerBtn = document.getElementById('vlc-btn');
             vlcPlayerBtn.href = `/play/vlc/${fileLink}`;
+
+            // Wake lock & NoSleep setup
+            let wakeLock = null;
+            let noSleep = null;
+            if (typeof NoSleep !== 'undefined') {
+                try {
+                    noSleep = new NoSleep();
+                } catch (e) {
+                    noSleep = null;
+                }
+            }
+
+            async function requestWakeLock() {
+                // Prefer Wake Lock API if available
+                if ('wakeLock' in navigator) {
+                    try {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        // Release on unexpected release by the UA (the 'release' event can be attached on some browsers)
+                        if (wakeLock && typeof wakeLock.addEventListener === 'function') {
+                            wakeLock.addEventListener('release', () => {
+                                wakeLock = null;
+                            });
+                        }
+                        console.log('Wake Lock is active');
+                        return;
+                    } catch (err) {
+                        console.warn('Wake Lock request failed:', err);
+                        wakeLock = null;
+                    }
+                }
+
+                // Fallback to NoSleep.js (creates a tiny playing video to keep screen awake)
+                if (noSleep) {
+                    try {
+                        noSleep.enable(); // requires user gesture (play) — we call this from a play handler
+                        console.log('NoSleep enabled');
+                    } catch (err) {
+                        console.warn('NoSleep enable failed:', err);
+                    }
+                }
+            }
+
+            async function releaseWakeLock() {
+                if (wakeLock) {
+                    try {
+                        await wakeLock.release();
+                    } catch (err) {
+                        console.warn('Wake Lock release failed:', err);
+                    }
+                    wakeLock = null;
+                }
+                if (noSleep) {
+                    try {
+                        noSleep.disable();
+                    } catch (err) {
+                        console.warn('NoSleep disable failed:', err);
+                    }
+                }
+            }
 
             // fetch details and populate UI + init player
             fetch(`/details/${fileLink}`)
@@ -214,13 +276,49 @@
                     }
 
                     // instantiate Artplayer
-                    new Artplayer(playerOptions);
+                    const player = new Artplayer(playerOptions);
+
+                    // Attach event handlers to keep screen awake while playing
+                    player.on && player.on('play', async () => {
+                        // request wake lock on play (must be called following user gesture to work on many devices)
+                        await requestWakeLock();
+                    });
+
+                    player.on && player.on('pause', async () => {
+                        // release wake lock when paused
+                        await releaseWakeLock();
+                    });
+
+                    // If the page becomes hidden (user switches apps), some browsers automatically release the wake lock.
+                    // Re-request it when visible again (if video is playing).
+                    document.addEventListener('visibilitychange', async () => {
+                        try {
+                            if (document.visibilityState === 'visible') {
+                                // If playing and no wake lock, try to re-acquire
+                                const videoEl = document.querySelector('.artplayer-app video');
+                                const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
+                                if (isPlaying && !wakeLock) {
+                                    await requestWakeLock();
+                                }
+                            } else {
+                                // On hidden, release wake lock to be polite
+                                await releaseWakeLock();
+                            }
+                        } catch (e) {
+                            console.warn('Visibility change wake-lock handling error:', e);
+                        }
+                    });
+
+                    // Cleanup on unload
+                    window.addEventListener('beforeunload', async () => {
+                        await releaseWakeLock();
+                    });
                 })
                 .catch(err => {
                     console.error('Error fetching video details:', err);
                     // fallback UI + player
                     document.getElementById('file-name').innerText = decodeURIComponent(rawFileLink) || 'Video';
-                    new Artplayer({
+                    const fallbackPlayer = new Artplayer({
                         container: '.artplayer-app',
                         url: streamUrl,
                         title: decodeURIComponent(rawFileLink) || 'Video',
@@ -232,6 +330,34 @@
                         setting: true,
                         autoOrientation: true,
                         hotkey: true,
+                    });
+
+                    // Attach same wake-lock/pause handlers for fallback player
+                    fallbackPlayer.on && fallbackPlayer.on('play', async () => {
+                        await requestWakeLock();
+                    });
+                    fallbackPlayer.on && fallbackPlayer.on('pause', async () => {
+                        await releaseWakeLock();
+                    });
+
+                    document.addEventListener('visibilitychange', async () => {
+                        try {
+                            if (document.visibilityState === 'visible') {
+                                const videoEl = document.querySelector('.artplayer-app video');
+                                const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
+                                if (isPlaying && !wakeLock) {
+                                    await requestWakeLock();
+                                }
+                            } else {
+                                await releaseWakeLock();
+                            }
+                        } catch (e) {
+                            console.warn('Visibility change wake-lock handling error:', e);
+                        }
+                    });
+
+                    window.addEventListener('beforeunload', async () => {
+                        await releaseWakeLock();
                     });
                 });
         });
