@@ -45,6 +45,7 @@
             align-items: center;
             justify-content: center;
             width: 100%;
+            position: relative;
         }
 
         .player-aspect {
@@ -61,6 +62,7 @@
         .artplayer-app {
             width: 100%;
             height: 100%;
+            position: relative;
         }
 
         .info-container {
@@ -111,6 +113,35 @@
             color: white;
             font-size: 1rem;
             text-align: center;
+        }
+
+        .overlay-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            color: white;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .mobile-controls {
+            position: absolute;
+            bottom: 10%;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            pointer-events: auto;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .mobile-controls.show {
+            opacity: 1;
         }
 
         @media (max-width: 992px) {
@@ -191,7 +222,6 @@
         </div>
     </div>
 
-    <!-- Script: deferred for better performance -->
     <script defer>
         (async () => {
             const rawFileLink = window.location.pathname.split('/').pop() || '';
@@ -270,10 +300,81 @@
                 window.addEventListener('beforeunload', async () => await releaseWakeLock());
             };
 
+            // 👇 Mobile gesture and buttons support with auto-hide
+            const initMobileControls = (player) => {
+                if (!/Mobi|Android/i.test(navigator.userAgent)) return;
+
+                const container = document.querySelector('.artplayer-app');
+                let startX = 0;
+                let endX = 0;
+                let hideTimeout = null;
+
+                container.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    showButtons();
+                });
+
+                container.addEventListener('touchend', (e) => {
+                    endX = e.changedTouches[0].clientX;
+                    const diff = endX - startX;
+
+                    if (diff > 50) {
+                        player.currentTime += 10;
+                        showOverlayMessage('⏩ +10s');
+                    } else if (diff < -50) {
+                        player.currentTime -= 10;
+                        showOverlayMessage('⏪ -10s');
+                    } else {
+                        player.toggle();
+                    }
+
+                    showButtons();
+                });
+
+                const msg = document.createElement('div');
+                msg.className = 'overlay-message';
+                container.appendChild(msg);
+
+                function showOverlayMessage(text) {
+                    msg.textContent = text;
+                    msg.style.opacity = 1;
+                    setTimeout(() => (msg.style.opacity = 0), 600);
+                }
+
+                const btnContainer = document.createElement('div');
+                btnContainer.className = 'mobile-controls';
+                btnContainer.innerHTML = `
+                    <button class="btn btn-sm btn-light" style="opacity:0.8;">⏪ 10s</button>
+                    <button class="btn btn-sm btn-light" style="opacity:0.8;">⏩ 10s</button>
+                `;
+                const [rewindBtn, forwardBtn] = btnContainer.querySelectorAll('button');
+
+                rewindBtn.onclick = () => {
+                    player.currentTime -= 10;
+                    showOverlayMessage('⏪ -10s');
+                    showButtons();
+                };
+                forwardBtn.onclick = () => {
+                    player.currentTime += 10;
+                    showOverlayMessage('⏩ +10s');
+                    showButtons();
+                };
+
+                container.appendChild(btnContainer);
+
+                function showButtons() {
+                    btnContainer.classList.add('show');
+                    clearTimeout(hideTimeout);
+                    hideTimeout = setTimeout(() => btnContainer.classList.remove('show'), 2500);
+                }
+
+                // show initially for 2 seconds
+                showButtons();
+                hideTimeout = setTimeout(() => btnContainer.classList.remove('show'), 2000);
+            };
+
             const initPlayer = async (data) => {
                 loadingEl.style.display = 'none';
-
-                // ✅ Load scripts dynamically (works with CDN globals)
                 await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
                 await loadScript('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js');
 
@@ -300,14 +401,14 @@
                         type: data.subtitle_type || 'srt',
                         encoding: data.subtitle_encoding || 'utf-8',
                         default: true,
-                        style: { color: '#FFFFFF', fontSize: '21px', fontWeight: 'bold' },
+                        style: { color: '#FFFFFF', fontSize: '19px', fontWeight: 'bold' },
                     };
                 }
 
                 const player = new Artplayer(playerOptions);
                 attachWakeLockHandlers(player);
+                initMobileControls(player);
 
-                // Resume playback
                 const resumeKey = `resumeTime_${fileLink}`;
                 player.on('ready', () => {
                     const savedTime = localStorage.getItem(resumeKey);
