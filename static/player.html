@@ -273,7 +273,7 @@
             const initPlayer = async (data) => {
                 loadingEl.style.display = 'none';
 
-                // ✅ Load scripts dynamically (works with CDN globals)
+                // ✅ Load scripts dynamically
                 await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
                 await loadScript('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js');
 
@@ -308,14 +308,25 @@
                 const player = new Artplayer(playerOptions);
                 attachWakeLockHandlers(player);
 
-                // Resume playback
+                // ✅ Reliable resume playback
                 const resumeKey = `resumeTime_${fileLink}`;
-                player.on('ready', () => {
-                    const savedTime = localStorage.getItem(resumeKey);
-                    if (savedTime) player.currentTime = parseFloat(savedTime);
+                const savedTime = parseFloat(localStorage.getItem(resumeKey) || '0');
+
+                player.on('video:loadedmetadata', () => {
+                    if (savedTime > 0 && savedTime < player.duration - 3) {
+                        player.currentTime = savedTime;
+                        console.log(`⏩ Resumed playback at ${savedTime.toFixed(1)}s`);
+                    }
                 });
+
                 player.on('timeupdate', () => {
-                    localStorage.setItem(resumeKey, player.currentTime);
+                    if (!player.video.paused && !player.video.ended) {
+                        localStorage.setItem(resumeKey, player.currentTime);
+                    }
+                });
+
+                player.on('ended', () => {
+                    localStorage.removeItem(resumeKey);
                 });
             };
 
