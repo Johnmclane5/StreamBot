@@ -314,15 +314,32 @@
                 } catch (e) { /* ignore */ }
             });
 
-            player.on('timeupdate', () => {
+            const saveTime = () => {
                 try {
-                    if (!player.video.paused && !player.video.ended) {
+                    if (player.currentTime > 0 && !player.video.ended) {
                         localStorage.setItem(resumeKey, player.currentTime);
                     }
-                } catch (e) { /* ignore */ }
-            });
+                } catch (e) {
+                    console.warn('Failed to save playback time:', e);
+                }
+            };
 
-            player.on('ended', () => localStorage.removeItem(resumeKey));
+            // Save progress on page hide or when visibility changes
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    saveTime();
+                }
+            });
+            window.addEventListener('pagehide', saveTime);
+
+
+            player.on('ended', () => {
+                localStorage.removeItem(resumeKey);
+            });
+            
+            // Fallback to periodic saving
+            const saveInterval = setInterval(saveTime, 5000);
+            player.on('destroy', () => clearInterval(saveInterval));
         }
 
         setButtonLinks();
