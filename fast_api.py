@@ -261,14 +261,20 @@ async def get_file_details(file_link: str):
     })
 
 @api.get("/play/{player}/{file_link}")
-async def play_in_player(player: str, file_link: str):
+async def play_in_player(player: str, file_link: str, request: Request):
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_ios = "iphone" in user_agent or "ipad" in user_agent or "ipod" in user_agent
+
     if player == "mx":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end"
     elif player == "mxpro":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.pro;end"
     elif player == "vlc":
-        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end"
+        if is_ios:
+            redirect_url = f"vlc-x-callback://x-callback-url/stream?url={quote(stream_url)}"
+        else:
+            redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end"
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
     return RedirectResponse(url=redirect_url, status_code=302)

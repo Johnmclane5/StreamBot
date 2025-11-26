@@ -185,7 +185,7 @@
                 <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
             </div>
 
-            <p class="recommend-note">
+            <p class="recommend-note" id="recommend-note">
                 💡 Recommended: Use MX Player / VLC for subtitle and dual audio support.
             </p>
         </div>
@@ -201,9 +201,24 @@
             const infoContainer = document.querySelector('.info-container');
 
             const setButtonLinks = () => {
-                document.getElementById('mx-player-btn').href = `/play/mx/${fileLink}`;
-                document.getElementById('mx-pro-btn').href = `/play/mxpro/${fileLink}`;
-                document.getElementById('vlc-btn').href = `/play/vlc/${fileLink}`;
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+                const mxPlayerBtn = document.getElementById('mx-player-btn');
+                const mxProBtn = document.getElementById('mx-pro-btn');
+                const vlcBtn = document.getElementById('vlc-btn');
+                const recommendNote = document.getElementById('recommend-note');
+
+                if (isIOS) {
+                    mxPlayerBtn.style.display = 'none';
+                    mxProBtn.style.display = 'none';
+                    vlcBtn.href = `/play/vlc/${fileLink}`;
+                    vlcBtn.innerText = 'Play in VLC (iOS)';
+                    recommendNote.innerText = '💡 Recommended: Use VLC for subtitle and dual audio support.';
+                } else {
+                    mxPlayerBtn.href = `/play/mx/${fileLink}`;
+                    mxProBtn.href = `/play/mxpro/${fileLink}`;
+                    vlcBtn.href = `/play/vlc/${fileLink}`;
+                }
             };
 
             const showError = (message) => {
