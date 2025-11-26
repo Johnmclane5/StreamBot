@@ -47,9 +47,10 @@ def decode_file_link(file_link: str) -> tuple[int, int]:
 def get_file_properties(message):
     channel_id = message.chat.id
     message_id = message.id
+    media_name = message.video.file_name or message.document.file_name or message.audio.file_name
 
     file_doc = files_col.find_one({"channel_id": channel_id, "message_id": message_id})
-    file_name = file_doc.get("file_name", "") if file_doc else "Unknown"
+    file_name = file_doc.get("file_name", "") if file_doc else media_name
 
     if message.document:
         return file_name, message.document.file_size
