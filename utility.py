@@ -1,5 +1,6 @@
 
 import re
+import asyncio
 import base64
 import logging
 from config import *
@@ -81,4 +82,12 @@ def remove_unwanted(caption):
     except Exception as e:
         logger.error(e)
         return None
+
+async def auto_delete_message(user_message, bot_message):
+    try:        
+        await asyncio.sleep(AUTO_DELETE_SECONDS)
+        await user_message.delete()
+        await bot_message.delete()
+    except Exception as e:
+        pass
         
