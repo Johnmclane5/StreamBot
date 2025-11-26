@@ -46,26 +46,14 @@ def decode_file_link(file_link: str) -> tuple[int, int]:
 
 
 def get_file_properties(message):
-    channel_id = message.chat.id
-    message_id = message.id
-
-    # Try to get file doc from DB
-    file_doc = files_col.find_one({"channel_id": channel_id, "message_id": message_id})
-    file_name = file_doc.get("file_name") if file_doc else None
-
-    # Extract file info from Telegram message
-    media = message.document or message.video or message.audio
-    
-    if not media:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail="Unsupported file type"
-        )
-
-    # If DB doesn't have a name, fall back to Telegram-provided file_name
-    actual_file_name = file_name or getattr(media, "file_name", "Unknown")
-
-    return actual_file_name, media.file_size
+    if message.document:
+        return message.caption or message.document.file_name, message.document.file_size
+    elif message.video:
+        return message.caption or message.video.file_name, message.video.file_size
+    elif message.audio:
+        return message.audio.file_name, message.audio.file_size
+    else:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Unsupported file type")
 
 @api.get("/")
 async def root():
