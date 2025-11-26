@@ -23,30 +23,27 @@
         }
 
         .wrapper {
-            max-width: 1200px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 1.5rem 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
+            text-align: center;
         }
 
-        /* 🎥 Player Container */
+        /* 🎥 Player – FIXED: no background container behind */
         .player-box {
-            background: #111;
-            border-radius: .5rem;
-            overflow: hidden;
             width: 100%;
+            background: #000;
+            overflow: hidden;
             display: flex;
             justify-content: center;
+            border-radius: 10px;
         }
 
         .player-aspect {
             width: 100%;
-            max-width: 700px;
             aspect-ratio: 16 / 9;
             position: relative;
+            max-width: 100%;
         }
 
         .artplayer-app {
@@ -62,14 +59,12 @@
             color: #fff;
         }
 
-        /* 📦 Info Section */
+        /* 📦 Info Box */
         .info-container {
-            width: 100%;
-            max-width: 700px;
-            background: #111;
-            padding: 1.25rem;
+            margin-top: 1.2rem;
+            background: #0f0f0f;
+            padding: 1.2rem;
             border-radius: .5rem;
-            text-align: center;
             border: 1px solid #222;
         }
 
@@ -81,45 +76,39 @@
         }
 
         #file-size {
-            margin-top: 0.3rem;
+            margin-top: .3rem;
             color: #aaa;
         }
 
-        /* 🔽 Collapsible Toggle */
         .recommend-note {
-            margin-top: .6rem;
-            margin-bottom: 0 !important;
-            font-size: 0.9rem;
+            margin-top: .7rem;
+            font-size: .9rem;
             color: #4dd0e1;
             text-decoration: underline;
             cursor: pointer;
         }
 
-        #playerOptions {
-            margin-top: .7rem;
-        }
-
-        /* 📱 Platform Boxes */
+        /* Platform Sections */
         .platform-box {
             background: #0d0d0d;
             border: 1px solid #222;
             padding: .9rem;
             border-radius: .35rem;
-            margin-bottom: 1rem;
+            margin-top: 1rem;
+            text-align: left;
         }
 
         .platform-box h5 {
-            margin-bottom: .5rem;
-            color: #ddd;
             font-weight: 600;
+            margin-bottom: .6rem;
+            color: #e0e0e0;
         }
 
-        /* 🔘 Buttons */
         .button-group {
             display: flex;
             flex-wrap: wrap;
             gap: .5rem;
-            margin-bottom: .6rem;
+            margin-bottom: .7rem;
         }
 
         .btn-info {
@@ -133,14 +122,10 @@
             color: #fff;
         }
 
-        /* Responsive Tweaks */
+        /* Mobile */
         @media (max-width: 576px) {
             .wrapper {
-                padding: 1rem .5rem;
-            }
-
-            .player-aspect {
-                max-width: 100%;
+                padding: 1rem .6rem;
             }
         }
     </style>
@@ -150,7 +135,7 @@
     <div class="wrapper">
 
         <!-- 🎥 Player -->
-        <div class="player-box" aria-label="Video player">
+        <div class="player-box">
             <div class="player-aspect">
                 <div class="artplayer-app">
                     <div class="loading" id="loading">Loading video...</div>
@@ -158,17 +143,17 @@
             </div>
         </div>
 
-        <!-- 📦 Info Section -->
+        <!-- 📦 Info -->
         <div class="info-container">
-            <h3 id="file-name" title=""></h3>
+            <h3 id="file-name"></h3>
             <p id="file-size"></p>
 
-            <!-- 💡 Collapsible Note -->
             💡 For Subtitle and Dual Audio Support, use a dedicated player like MX Player or VLC.
             <p class="recommend-note" data-toggle="collapse" data-target="#playerOptions">
-                Tap to know more.
+                Tap to know more
             </p>
-            <!-- 🔽 Collapsible Content -->
+
+            <!-- 🔽 COLLAPSIBLE -->
             <div id="playerOptions" class="collapse">
 
                 <!-- Android -->
@@ -181,20 +166,25 @@
                     </div>
                 </div>
 
-                <!-- iOS / Windows / Linux -->
+                <!-- iOS / PC -->
                 <div class="platform-box">
                     <h5>For iOS / Windows / Linux</h5>
+
                     <div class="button-group">
-                        <a class="btn btn-info" href="https://www.videolan.org/vlc/#download" target="_blank">Download VLC</a>
+                        <a class="btn btn-info" href="https://www.videolan.org/vlc/#download" target="_blank">
+                            Download VLC
+                        </a>
                     </div>
+
                     <div class="button-group">
-                        <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream</button>
+                        <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream Link</button>
                     </div>
+
                     <ol>
                         <li>Copy the stream link.</li>
                         <li>Open VLC.</li>
-                        <li>Select "Open Network Stream".</li>
-                        <li>Paste and play.</li>
+                        <li>Select “Open Network Stream”.</li>
+                        <li>Paste & play.</li>
                     </ol>
                 </div>
 
@@ -203,90 +193,89 @@
 
     </div>
 
-    <!-- 📜 Bootstrap JS -->
+    <!-- Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
-    <!-- 🎬 Player Script -->
+    <!-- Player Script -->
     <script defer>
         (async () => {
-            const rawFileLink = window.location.pathname.split('/').pop() || '';
-            const fileLink = encodeURIComponent(rawFileLink);
-            const streamUrl = `/stream/${fileLink}`;
-            const loadingEl = document.getElementById('loading');
+            const rawFile = window.location.pathname.split('/').pop() || '';
+            const encoded = encodeURIComponent(rawFile);
+            const streamUrl = `/stream/${encoded}`;
+            const loading = document.getElementById('loading');
 
-            /* Set Android Links */
-            const setButtonLinks = () => {
-                const fullStream = `${window.location.origin}/stream/${fileLink}`;
+            function setAndroidLinks() {
+                const full = `${location.origin}/stream/${encoded}`;
 
-                document.getElementById('mx-player-btn').href = `/play/mx/${fileLink}`;
-                document.getElementById('mx-pro-btn').href = `/play/mxpro/${fileLink}`;
-                document.getElementById('vlc-btn').href = `/play/vlc/${fileLink}`;
+                document.getElementById('mx-player-btn').href = `/play/mx/${encoded}`;
+                document.getElementById('mx-pro-btn').href = `/play/mxpro/${encoded}`;
+                document.getElementById('vlc-btn').href = `/play/vlc/${encoded}`;
 
-                const copyBtn = document.getElementById('copy-stream-link-btn');
-                copyBtn.onclick = () => {
-                    navigator.clipboard.writeText(fullStream).then(() => {
-                        copyBtn.innerText = 'Copied!';
-                        setTimeout(() => copyBtn.innerText = 'Copy Stream Link', 2000);
+                const btn = document.getElementById('copy-stream-link-btn');
+                btn.onclick = () => {
+                    navigator.clipboard.writeText(full).then(() => {
+                        btn.innerText = 'Copied!';
+                        setTimeout(() => btn.innerText = 'Copy Stream Link', 2000);
                     });
                 };
-            };
+            }
 
-            const loadScript = src =>
-                new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = src;
-                    script.onload = resolve;
-                    script.onerror = reject;
-                    document.head.appendChild(script);
+            function loadScript(src) {
+                return new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = src;
+                    s.onload = resolve;
+                    s.onerror = reject;
+                    document.head.appendChild(s);
                 });
+            }
 
-            /* Initialize Player */
-            const initPlayer = async (data) => {
-                loadingEl.style.display = 'none';
+            async function initPlayer(details) {
+                loading.style.display = 'none';
 
                 await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
 
                 const player = new Artplayer({
                     container: '.artplayer-app',
                     url: streamUrl,
-                    title: data.file_name || rawFileLink,
+                    title: details.file_name || rawFile,
                     autoSize: true,
                     playsInline: true
                 });
 
-                const resumeKey = `resumeTime_${fileLink}`;
-                const saved = parseFloat(localStorage.getItem(resumeKey) || '0');
+                const key = `resume_${encoded}`;
+                const saved = parseFloat(localStorage.getItem(key) || '0');
 
                 player.on('video:loadedmetadata', () => {
-                    if (saved > 0 && saved < player.duration - 3) {
+                    if (saved > 0 && saved < player.duration - 2) {
                         player.currentTime = saved;
                     }
                 });
 
                 player.on('timeupdate', () => {
                     if (!player.video.paused) {
-                        localStorage.setItem(resumeKey, player.currentTime);
+                        localStorage.setItem(key, player.currentTime);
                     }
                 });
 
-                player.on('ended', () => localStorage.removeItem(resumeKey));
-            };
+                player.on('ended', () => localStorage.removeItem(key));
+            }
 
-            setButtonLinks();
+            setAndroidLinks();
 
             try {
-                const response = await fetch(`/details/${fileLink}`);
-                const data = await response.json();
+                const res = await fetch(`/details/${encoded}`);
+                const data = await res.json();
 
-                document.getElementById('file-name').innerText = data.file_name || rawFileLink;
+                document.getElementById('file-name').innerText = data.file_name || rawFile;
                 document.getElementById('file-size').innerText = data.file_size || '';
 
-                await initPlayer(data);
-            } catch {
-                document.getElementById('file-name').innerText = rawFileLink;
-                await initPlayer({});
+                initPlayer(data);
+            } catch (e) {
+                document.getElementById('file-name').innerText = rawFile;
+                initPlayer({});
             }
         })();
     </script>
