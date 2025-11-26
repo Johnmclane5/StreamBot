@@ -45,12 +45,18 @@ def decode_file_link(file_link: str) -> tuple[int, int]:
 
 
 def get_file_properties(message):
+    channel_id = message.chat.id
+    message_id = message.id
+
+    file_doc = files_col.find_one({"channel_id": channel_id, "message_id": message_id})
+    file_name = file_doc.get("file_name", "") if file_doc else "Unknown"
+
     if message.document:
-        return None, message.document.file_size
+        return file_name, message.document.file_size
     elif message.video:
-        return None, message.video.file_size
+        return file_name, message.video.file_size
     elif message.audio:
-        return None, message.audio.file_size
+        return file_name, message.audio.file_size
     else:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Unsupported file type")
 
@@ -230,24 +236,22 @@ async def get_file_details(file_link: str):
     if not message:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
-    file_doc = files_col.find_one({"channel_id": channel_id, "message_id": message_id})
-    file_name = file_doc.get("file_name", "") if file_doc else ""
-
-    _, file_size = get_file_properties(message)
+    file_name, file_size = get_file_properties(message)
+    
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
         mime_type = "video/mp4"
 
     # Subtitle search logic
     subtitle_url = None
-    if file_name:
-        base_name, _ = os.path.splitext(file_name)
-        subtitle_name = f"{base_name}.srt"
-        subtitle_doc = files_col.find_one({"file_name": subtitle_name})
-        if subtitle_doc:
-            bot_instance = Bot("temp_instance")
-            subtitle_link = bot_instance.encode_file_link(subtitle_doc['channel_id'], subtitle_doc['message_id'])
-            subtitle_url = f"/subtitle/{subtitle_link}"
+    base_name, _ = os.path.splitext(file_name)
+    subtitle_name = f"{base_name}.srt"
+
+    subtitle_doc = files_col.find_one({"file_name": subtitle_name})
+    if subtitle_doc:
+        bot_instance = Bot("temp_instance")
+        subtitle_link = bot_instance.encode_file_link(subtitle_doc['channel_id'], subtitle_doc['message_id'])
+        subtitle_url = f"/subtitle/{subtitle_link}"
 
     return JSONResponse({
         "file_name": file_name,
@@ -271,4 +275,3 @@ async def play_in_player(player: str, file_link: str):
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
     return RedirectResponse(url=redirect_url, status_code=302)
-
