@@ -90,6 +90,19 @@
             margin-top: .75rem;
         }
 
+        .platform-box {
+            text-align: left;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border: 1px solid #6c757d;
+            border-radius: .25rem;
+        }
+
+        .platform-box h5 {
+            font-weight: bold;
+            color: #6c757d;
+        }
+
         .recommend-note {
             font-size: 0.9rem;
             color: #17a2b8;
@@ -201,18 +214,31 @@
             <h3 id="file-name" title=""></h3>
             <p id="file-size"></p>
 
-            <div class="button-group">
-                <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player</a>
-                <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
-                <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
-                <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream</button>
+            <div id="android-box" class="platform-box">
+                <h5>For Android</h5>
+                <div class="button-group">
+                    <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player</a>
+                    <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
+                    <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
+                </div>
             </div>
 
-            <div id="stream-link-guide" class="guide-box">
-                <h5>How to Play using a Stream Link:</h5>
-                <ol>
-                    <li>Tap the "Copy Stream" button.</li>
-                    <li>Open your preferred media player (e.g., VLC).</li>
+            <div id="ios-box" class="platform-box">
+                <h5>For iOS</h5>
+                <div class="button-group">
+                    <a class="btn btn-info" href="https://apps.apple.com/us/app/vlc-media-player/id650377962" target="_blank">Download VLC from App Store</a>
+                </div>
+            </div>
+
+            <div id="stream-link-box" class="platform-box">
+                <div class="button-group">
+                    <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream Link</button>
+                </div>
+                <div id="stream-link-guide" class="guide-box" style="border: none; padding: 0; margin-top: .5rem">
+                    <h5>How to Play using a Stream Link:</h5>
+                    <ol>
+                        <li>Tap the "Copy Stream" button.</li>
+                        <li>Open your preferred media player (e.g., VLC).</li>
                     <li>Find the "Open Network Stream" or similar option.</li>
                     <li>Paste the link into the URL field and play.</li>
                 </ol>
