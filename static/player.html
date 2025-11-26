@@ -58,23 +58,19 @@
         }
 
         .info-container {
+            max-width: 900px;
             width: 100%;
             background: #fff;
             border-radius: .25rem;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
             padding: 1rem 1.25rem;
             text-align: center;
-            word-wrap: break-word;
-            align-self: center;
-            max-width: 900px;
             transition: background-color 0.3s, color 0.3s;
         }
 
         #file-name {
             margin: 0;
             font-size: 1.25rem;
-            word-break: break-word;
-            white-space: normal;
         }
 
         #file-size {
@@ -108,24 +104,7 @@
             color: #17a2b8;
             margin-top: .75rem;
             font-style: italic;
-        }
-
-        .guide-box {
-            text-align: left;
-            margin-top: 1rem;
-            padding: 0.75rem;
-            border: 1px solid #6c757d;
-            border-radius: .25rem;
-        }
-
-        .guide-box h5 {
-            font-weight: bold;
-            color: #6c757d;
-        }
-
-        .guide-box ol {
-            padding-left: 1.25rem;
-            margin-bottom: 0;
+            cursor: pointer;
         }
 
         .loading {
@@ -165,13 +144,9 @@
 
         .art-subtitle {
             opacity: 1 !important;
-            display: block !important;
-            visibility: visible !important;
-            pointer-events: none !important;
-            transition: none !important;
         }
 
-        /* 🌙 Dark Theme */
+        /* 🌙 Dark Mode */
         @media (prefers-color-scheme: dark) {
             body {
                 background-color: #121212;
@@ -188,11 +163,6 @@
                 color: #9e9e9e;
             }
 
-            .btn-info {
-                background-color: #17a2b8;
-                border-color: #17a2b8;
-            }
-
             .recommend-note {
                 color: #4dd0e1;
             }
@@ -202,6 +172,7 @@
 
 <body>
     <div class="wrapper">
+
         <div class="player-box" aria-label="Video player">
             <div class="player-aspect">
                 <div class="artplayer-app">
@@ -214,39 +185,54 @@
             <h3 id="file-name" title=""></h3>
             <p id="file-size"></p>
 
-            <div id="android-box" class="platform-box">
-                <h5>For Android</h5>
-                <div class="button-group">
-                    <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">MX Player</a>
-                    <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">MX Player</a>
-                    <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">VLC</a>
-                </div>
-            </div>
-
-            <div id="ios-box" class="platform-box">
-                <h5>For iOS</h5>
-                <div class="button-group">
-                    <a class="btn btn-info" href="https://apps.apple.com/us/app/vlc-media-player/id650377962" target="_blank">Download VLC from App Store</a>
-                </div>
-                <div class="button-group">
-                    <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream</button>
-                </div>
-                <ol>
-                    <li>Tap the "Copy Stream" button.</li>
-                    <li>Open your VLC player</li>
-                    <li>Find the "Open Network Stream" in Settings</li>
-                    <li>Paste the link into the URL field and play.</li>
-                </ol>
-            </div>
-
-
-            <p class="recommend-note">
+            <!-- 💡 Collapsible Line -->
+            <p class="recommend-note" data-toggle="collapse" data-target="#playerOptions">
                 💡 For Subtitle and Dual Audio Support, use a dedicated player like MX Player or VLC.
+                <span style="text-decoration: underline;">Tap to know more</span>
             </p>
+
+            <!-- Collapsible Options Section -->
+            <div id="playerOptions" class="collapse">
+
+                <!-- Android -->
+                <div id="android-box" class="platform-box">
+                    <h5>For Android</h5>
+                    <div class="button-group">
+                        <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">MX Player</a>
+                        <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">MX Player Pro</a>
+                        <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">VLC</a>
+                    </div>
+                </div>
+
+                <!-- iOS -->
+                <div id="ios-box" class="platform-box">
+                    <h5>For iOS</h5>
+                    <div class="button-group">
+                        <a class="btn btn-info"
+                            href="https://apps.apple.com/us/app/vlc-media-player/id650377962"
+                            target="_blank">Download VLC from App Store</a>
+                    </div>
+                    <div class="button-group">
+                        <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream Link</button>
+                    </div>
+                    <ol>
+                        <li>Tap the "Copy Stream Link" button.</li>
+                        <li>Open your VLC player.</li>
+                        <li>Select "Open Network Stream".</li>
+                        <li>Paste the link and play.</li>
+                    </ol>
+                </div>
+
+            </div>
         </div>
     </div>
 
-    <!-- Script: deferred for better performance -->
+    <!-- Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Your existing video/player logic -->
     <script defer>
         (async () => {
             const rawFileLink = window.location.pathname.split('/').pop() || '';
@@ -256,17 +242,16 @@
             const infoContainer = document.querySelector('.info-container');
 
             const setButtonLinks = () => {
-                const streamUrl = `${window.location.origin}/stream/${fileLink}`;
-
+                const fullStream = `${window.location.origin}/stream/${fileLink}`;
                 document.getElementById('mx-player-btn').href = `/play/mx/${fileLink}`;
                 document.getElementById('mx-pro-btn').href = `/play/mxpro/${fileLink}`;
                 document.getElementById('vlc-btn').href = `/play/vlc/${fileLink}`;
 
-                const copyStreamLinkBtn = document.getElementById('copy-stream-link-btn');
-                copyStreamLinkBtn.onclick = () => {
-                    navigator.clipboard.writeText(streamUrl).then(() => {
-                        copyStreamLinkBtn.innerText = 'Copied!';
-                        setTimeout(() => (copyStreamLinkBtn.innerText = 'Copy Stream Link'), 2000);
+                const copyBtn = document.getElementById('copy-stream-link-btn');
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(fullStream).then(() => {
+                        copyBtn.innerText = 'Copied!';
+                        setTimeout(() => (copyBtn.innerText = 'Copy Stream Link'), 2000);
                     });
                 };
             };
@@ -275,16 +260,14 @@
                 infoContainer.innerHTML = `<div class="alert alert-danger">${message}</div>`;
             };
 
-            const loadScript = (src) => {
-                return new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = src;
-                    script.async = true;
-                    script.onload = resolve;
-                    script.onerror = reject;
-                    document.head.appendChild(script);
-                });
-            };
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
 
             let wakeLock = null;
             let noSleep = null;
@@ -293,52 +276,31 @@
                 if ('wakeLock' in navigator) {
                     try {
                         wakeLock = await navigator.wakeLock.request('screen');
-                        wakeLock.addEventListener('release', () => (wakeLock = null));
-                    } catch (err) {
-                        console.warn('Wake Lock request failed:', err);
-                    }
+                    } catch { }
                 } else if (noSleep) {
-                    try {
-                        noSleep.enable();
-                    } catch (err) {
-                        console.warn('NoSleep enable failed:', err);
-                    }
+                    try { noSleep.enable(); } catch { }
                 }
             };
 
             const releaseWakeLock = async () => {
                 if (wakeLock) {
-                    try {
-                        await wakeLock.release();
-                    } catch { }
+                    try { await wakeLock.release(); } catch { }
                     wakeLock = null;
                 }
                 if (noSleep) {
-                    try {
-                        noSleep.disable();
-                    } catch { }
+                    try { noSleep.disable(); } catch { }
                 }
             };
 
             const attachWakeLockHandlers = (player) => {
-                player.on('play', async () => await requestWakeLock());
-                player.on('pause', async () => await releaseWakeLock());
-                document.addEventListener('visibilitychange', async () => {
-                    const videoEl = document.querySelector('.artplayer-app video');
-                    const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
-                    if (document.visibilityState === 'visible' && isPlaying && !wakeLock) {
-                        await requestWakeLock();
-                    } else {
-                        await releaseWakeLock();
-                    }
-                });
-                window.addEventListener('beforeunload', async () => await releaseWakeLock());
+                player.on('play', requestWakeLock);
+                player.on('pause', releaseWakeLock);
+                window.addEventListener('beforeunload', releaseWakeLock);
             };
 
             const initPlayer = async (data) => {
                 loadingEl.style.display = 'none';
 
-                // ✅ Load scripts dynamically
                 await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
                 await loadScript('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js');
 
@@ -346,41 +308,26 @@
                     try { noSleep = new NoSleep(); } catch { }
                 }
 
-                const playerOptions = {
+                const player = new Artplayer({
                     container: '.artplayer-app',
                     url: streamUrl,
                     title: data.file_name || decodeURIComponent(rawFileLink),
-                    autoplay: false,
                     autoSize: true,
                     playsInline: true,
                     fullscreen: true,
                     miniProgressBar: true,
-                    fastForward: true,
-                    subtitle: {},
-                };
+                    fastForward: true
+                });
 
-                if (data.subtitle_url) {
-                    playerOptions.subtitle = {
-                        url: data.subtitle_url,
-                        type: data.subtitle_type || 'srt',
-                        encoding: data.subtitle_encoding || 'utf-8',
-                        default: true,
-                        escape: false,
-                        style: { color: '#FFFFFF', fontSize: '19px', fontWeight: 'bold' },
-                    };
-                }
-
-                const player = new Artplayer(playerOptions);
                 attachWakeLockHandlers(player);
 
-                // ✅ Reliable resume playback
+                // Resume Playback
                 const resumeKey = `resumeTime_${fileLink}`;
-                const savedTime = parseFloat(localStorage.getItem(resumeKey) || '0');
+                const saved = parseFloat(localStorage.getItem(resumeKey) || '0');
 
                 player.on('video:loadedmetadata', () => {
-                    if (savedTime > 0 && savedTime < player.duration - 3) {
-                        player.currentTime = savedTime;
-                        console.log(`⏩ Resumed playback at ${savedTime.toFixed(1)}s`);
+                    if (saved > 0 && saved < player.duration - 3) {
+                        player.currentTime = saved;
                     }
                 });
 
@@ -390,32 +337,27 @@
                     }
                 });
 
-                player.on('ended', () => {
-                    localStorage.removeItem(resumeKey);
-                });
+                player.on('ended', () => localStorage.removeItem(resumeKey));
             };
 
             setButtonLinks();
 
             try {
                 const response = await fetch(`/details/${fileLink}`);
-                if (!response.ok) throw new Error('Failed to load details');
+                if (!response.ok) throw new Error('Failed to load');
                 const data = await response.json();
 
-                document.getElementById('file-name').innerText = data.file_name || decodeURIComponent(rawFileLink);
+                document.getElementById('file-name').innerText = data.file_name || rawFileLink;
                 document.getElementById('file-size').innerText = data.file_size || '';
 
                 await initPlayer(data);
             } catch (err) {
-                console.error('Error fetching video details:', err);
-                showError('Failed to load video details. Please try again later.');
+                showError('Failed to load video details.');
                 await initPlayer({});
             }
         })();
     </script>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
 </body>
 
 </html>
