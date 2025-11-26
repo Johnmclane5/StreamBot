@@ -262,6 +262,9 @@ async def play_in_player(player: str, file_link: str):
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.pro;end"
     elif player == "vlc":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end"
+    elif player == "vlc-ios":
+        encoded_url = quote(stream_url, safe='')
+        redirect_url = f"vlc://{encoded_url}"
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
     return RedirectResponse(url=redirect_url, status_code=302)
