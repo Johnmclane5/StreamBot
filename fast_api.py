@@ -1,6 +1,7 @@
 
 import base64
 import asyncio
+import re
 import mimetypes
 import os
 import logging
@@ -12,7 +13,7 @@ from pyrogram.errors import ChannelInvalid, FloodWait, RPCError
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
-from app import get_worker_bot, Bot, cache
+from app import get_worker_bot, cache, encode_file_link
 from config import MY_DOMAIN, CHUNK_SIZE
 from db import files_col
 
@@ -249,12 +250,11 @@ async def get_file_details(file_link: str):
     # Subtitle search logic
     subtitle_url = None
     base_name, _ = os.path.splitext(file_name)
-    subtitle_name = f"{base_name}.srt"
+    subtitle_pattern = re.compile(f"^{re.escape(base_name)}\.(srt|vtt|ass)$", re.IGNORECASE)
 
-    subtitle_doc = files_col.find_one({"file_name": subtitle_name})
+    subtitle_doc = files_col.find_one({"file_name": subtitle_pattern})
     if subtitle_doc:
-        bot_instance = Bot("temp_instance")
-        subtitle_link = bot_instance.encode_file_link(subtitle_doc['channel_id'], subtitle_doc['message_id'])
+        subtitle_link = encode_file_link(subtitle_doc['channel_id'], subtitle_doc['message_id'])
         subtitle_url = f"/subtitle/{subtitle_link}"
 
     return JSONResponse({
