@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>File Details</title>
 
-    <!-- Bootstrap -->
+    <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 
     <style>
@@ -16,7 +16,6 @@
             color: #f1f1f1 !important;
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
         }
-
         a, button { color: inherit; }
 
         .wrapper {
@@ -26,7 +25,7 @@
             text-align: center;
         }
 
-        /* Player container (full width of wrapper; no stray background) */
+        /* Player */
         .player-box {
             width: 100%;
             background: #000;
@@ -64,7 +63,6 @@
         #file-name {
             font-size: 1.25rem;
             margin: 0;
-            /* allow long filenames to wrap */
             white-space: normal;
             overflow-wrap: anywhere;
             word-break: break-word;
@@ -97,9 +95,10 @@
             flex-wrap:wrap;
             gap:.5rem;
             margin-bottom:.7rem;
+            justify-content: flex-start;
         }
 
-        .btn-info { background-color: #0565ff; border-color:#0565ff; }
+        .btn-info { background-color: #0565ff; border-color:#0565ff; color: #fff; }
         .btn-secondary { background-color:#333; border-color:#555; color:#fff; }
 
         @media (max-width: 576px) {
@@ -139,7 +138,7 @@
                     </div>
                 </div>
 
-                <!-- iOS/PC -->
+                <!-- iOS / PC -->
                 <div class="platform-box">
                     <h5>For iOS / Windows / Linux</h5>
 
@@ -161,14 +160,15 @@
 
             </div>
         </div>
+
     </div>
 
-    <!-- Bootstrap JS -->
+    <!-- Bootstrap JS (needed for collapse) -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
-    <!-- Player script with subtitle + fullscreen + wake-lock + resume -->
+    <!-- Player + subtitle + wake-lock + nosleep + resume -->
     <script>
     (async () => {
         const rawFile = window.location.pathname.split('/').pop() || '';
@@ -177,13 +177,13 @@
         const loadingEl = document.getElementById('loading');
         const fileNameEl = document.getElementById('file-name');
 
-        // Insert zero-width space after dots so long dotted names can break nicely
+        // make breakable filename (zero-width after dots)
         function makeBreakableName(name) {
             if (!name) return '';
             return name.replace(/\./g, '.\u200B');
         }
 
-        const setButtonLinks = () => {
+        function setButtonLinks() {
             const full = `${location.origin}/stream/${encoded}`;
             const mx = document.getElementById('mx-player-btn');
             const mxp = document.getElementById('mx-pro-btn');
@@ -201,12 +201,11 @@
                         copyBtn.innerText = 'Copied!';
                         setTimeout(() => (copyBtn.innerText = prev), 2000);
                     }).catch(() => {
-                        // fallback: select prompt
                         alert('Could not copy automatically. URL: ' + full);
                     });
                 };
             }
-        };
+        }
 
         function loadScript(src) {
             return new Promise((resolve, reject) => {
@@ -219,7 +218,7 @@
             });
         }
 
-        // WakeLock / NoSleep handling
+        // WakeLock / NoSleep
         let wakeLock = null;
         let noSleep = null;
         const requestWakeLock = async () => {
@@ -227,18 +226,18 @@
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
                     wakeLock.addEventListener('release', () => (wakeLock = null));
-                } catch (err) { console.warn('WakeLock failed', err); }
+                } catch (err) { console.warn('WakeLock request failed:', err); }
             } else if (noSleep) {
-                try { noSleep.enable(); } catch (e) { console.warn('NoSleep enable failed', e); }
+                try { noSleep.enable(); } catch (e) { console.warn('NoSleep enable failed:', e); }
             }
         };
         const releaseWakeLock = async () => {
             if (wakeLock) {
-                try { await wakeLock.release(); } catch { }
+                try { await wakeLock.release(); } catch {}
                 wakeLock = null;
             }
             if (noSleep) {
-                try { noSleep.disable(); } catch { }
+                try { noSleep.disable(); } catch {}
             }
         };
         const attachWakeLockHandlers = (player) => {
@@ -261,17 +260,16 @@
         async function initPlayer(details) {
             loadingEl.style.display = 'none';
 
-            // load artplayer and nosleep
+            // load Artplayer + NoSleep
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js');
 
-            // init NoSleep if available
             if (typeof NoSleep !== 'undefined') {
                 try { noSleep = new NoSleep(); } catch (e) { /* ignore */ }
             }
 
             // build options
-            const opts = {
+            const options = {
                 container: '.artplayer-app',
                 url: streamUrl,
                 title: details.file_name || decodeURIComponent(rawFile),
@@ -284,34 +282,34 @@
                 subtitle: {}
             };
 
+            // If backend provides subtitle_url, set subtitle config
             if (details.subtitle_url) {
-                opts.subtitle = {
+                options.subtitle = {
                     url: details.subtitle_url,
                     type: details.subtitle_type || 'srt',
                     encoding: details.subtitle_encoding || 'utf-8',
                     default: true,
                     escape: false,
-                    style: { color: '#FFFFFF', fontSize: '18px', fontWeight: 'bold' },
+                    style: { color: '#FFFFFF', fontSize: '18px', fontWeight: 'bold' }
                 };
             } else {
-                // keep subtitle empty; Artplayer won't show subtitle controls if no url
-                delete opts.subtitle;
+                // remove empty subtitle (Artplayer shows controls only if present)
+                delete options.subtitle;
             }
 
-            const player = new Artplayer(opts);
+            const player = new Artplayer(options);
 
-            // attach wakelock handlers
+            // attach wake lock behavior
             attachWakeLockHandlers(player);
 
-            // resume playback
+            // resume playback support
             const resumeKey = `resumeTime_${encoded}`;
-            const savedTime = parseFloat(localStorage.getItem(resumeKey) || '0');
+            const saved = parseFloat(localStorage.getItem(resumeKey) || '0');
 
             player.on('video:loadedmetadata', () => {
                 try {
-                    if (savedTime > 0 && savedTime < player.duration - 3) {
-                        player.currentTime = savedTime;
-                        // console.log('resumed at', savedTime);
+                    if (saved > 0 && saved < player.duration - 3) {
+                        player.currentTime = saved;
                     }
                 } catch (e) { /* ignore */ }
             });
@@ -327,15 +325,14 @@
             player.on('ended', () => localStorage.removeItem(resumeKey));
         }
 
-        // page wiring
         setButtonLinks();
 
         try {
             const res = await fetch(`/details/${encoded}`);
-            if (!res.ok) throw new Error('Failed to fetch details');
+            if (!res.ok) throw new Error('details fetch failed');
             const data = await res.json();
 
-            // make filename breakable but keep original in title
+            // filename: make breakable & keep title as original
             const originalName = data.file_name || rawFile;
             const breakable = makeBreakableName(originalName);
             fileNameEl.innerText = breakable;
@@ -349,6 +346,7 @@
             const fallback = makeBreakableName(rawFile);
             fileNameEl.innerText = fallback;
             fileNameEl.title = rawFile;
+
             await initPlayer({});
         }
     })();
