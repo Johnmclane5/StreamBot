@@ -217,9 +217,9 @@
             <div id="android-box" class="platform-box">
                 <h5>For Android</h5>
                 <div class="button-group">
-                    <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player</a>
-                    <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
-                    <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
+                    <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">MX Player</a>
+                    <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">MX Player</a>
+                    <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">VLC</a>
                 </div>
             </div>
 
@@ -228,21 +228,17 @@
                 <div class="button-group">
                     <a class="btn btn-info" href="https://apps.apple.com/us/app/vlc-media-player/id650377962" target="_blank">Download VLC from App Store</a>
                 </div>
-            </div>
-
-            <div id="stream-link-box" class="platform-box">
                 <div class="button-group">
-                    <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream Link</button>
+                    <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream</button>
                 </div>
-                <div id="stream-link-guide" class="guide-box" style="border: none; padding: 0; margin-top: .5rem">
-                    <h5>How to Play using a Stream Link:</h5>
-                    <ol>
-                        <li>Tap the "Copy Stream" button.</li>
-                        <li>Open your preferred media player (e.g., VLC).</li>
-                    <li>Find the "Open Network Stream" or similar option.</li>
+                <ol>
+                    <li>Tap the "Copy Stream" button.</li>
+                    <li>Open your VLC player</li>
+                    <li>Find the "Open Network Stream" in Settings</li>
                     <li>Paste the link into the URL field and play.</li>
                 </ol>
             </div>
+
 
             <p class="recommend-note">
                 💡 For Subtitle and Dual Audio Support, use a dedicated player like MX Player or VLC.
@@ -417,6 +413,9 @@
             }
         })();
     </script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 
 </html>
