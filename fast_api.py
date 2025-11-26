@@ -27,7 +27,7 @@ api.add_middleware(
     allow_headers=["*"],
 )
 
-CONCURRENCY_LIMIT = 5
+CONCURRENCY_LIMIT = 4
 semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
 
 MAX_RETRIES = 3       
