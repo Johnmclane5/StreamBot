@@ -12,22 +12,28 @@
     <style>
         html,
         body {
+            height: 100%;
             margin: 0;
             background-color: #f8f9fa;
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: background-color 0.3s, color 0.3s;
         }
 
         .wrapper {
             width: 100%;
             max-width: 1200px;
-            padding: 2rem 1rem;
+            height: 100vh;
+            padding: 1rem;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             gap: 1rem;
             align-items: center;
-            margin: 0 auto;
+            justify-content: center;
         }
 
         .player-box {
@@ -97,24 +103,6 @@
             font-style: italic;
         }
 
-        .guide-box {
-            text-align: left;
-            margin-top: 1rem;
-            padding: 0.75rem;
-            border: 1px solid #6c757d;
-            border-radius: .25rem;
-        }
-
-        .guide-box h5 {
-            font-weight: bold;
-            color: #6c757d;
-        }
-
-        .guide-box ol {
-            padding-left: 1.25rem;
-            margin-bottom: 0;
-        }
-
         .loading {
             position: absolute;
             top: 50%;
@@ -137,16 +125,6 @@
             .player-aspect {
                 max-width: 80%;
                 padding-bottom: 8px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .player-aspect {
-                max-width: 95%;
-            }
-
-            .info-container {
-                max-width: 100%;
             }
         }
 
@@ -205,21 +183,10 @@
                 <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player</a>
                 <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
                 <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
-                <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream</button>
-            </div>
-
-            <div id="stream-link-guide" class="guide-box">
-                <h5>How to Play using a Stream Link:</h5>
-                <ol>
-                    <li>Tap the "Copy Stream" button.</li>
-                    <li>Open your preferred media player (e.g., VLC).</li>
-                    <li>Find the "Open Network Stream" or similar option.</li>
-                    <li>Paste the link into the URL field and play.</li>
-                </ol>
             </div>
 
             <p class="recommend-note">
-                💡 For Subtitle and Dual Audio Support, use a dedicated player like MX Player or VLC.
+                💡 Recommended: Use MX Player / VLC for subtitle and dual audio support.
             </p>
         </div>
     </div>
@@ -234,19 +201,9 @@
             const infoContainer = document.querySelector('.info-container');
 
             const setButtonLinks = () => {
-                const streamUrl = `${window.location.origin}/stream/${fileLink}`;
-
                 document.getElementById('mx-player-btn').href = `/play/mx/${fileLink}`;
                 document.getElementById('mx-pro-btn').href = `/play/mxpro/${fileLink}`;
                 document.getElementById('vlc-btn').href = `/play/vlc/${fileLink}`;
-
-                const copyStreamLinkBtn = document.getElementById('copy-stream-link-btn');
-                copyStreamLinkBtn.onclick = () => {
-                    navigator.clipboard.writeText(streamUrl).then(() => {
-                        copyStreamLinkBtn.innerText = 'Copied!';
-                        setTimeout(() => (copyStreamLinkBtn.innerText = 'Copy Stream Link'), 2000);
-                    });
-                };
             };
 
             const showError = (message) => {
