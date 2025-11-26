@@ -24,9 +24,9 @@ class Bot(Client):
     def remove_surrogates(self, text):
         return ''.join(c for c in text if not (0xD800 <= ord(c) <= 0xDFFF))
 
-def encode_file_link(self, channel_id, message_id):
-    raw = f"{channel_id}_{message_id}".encode()
-    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+    def encode_file_link(self, channel_id, message_id):
+        raw = f"{channel_id}_{message_id}".encode()
+        return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 # Initialize main bot
 bot = Bot(

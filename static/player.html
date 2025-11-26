@@ -292,11 +292,8 @@
                     escape: false,
                     style: { color: '#FFFFFF', fontSize: '18px', fontWeight: 'bold' }
                 };
-            } else {
-                // remove empty subtitle (Artplayer shows controls only if present)
-                delete options.subtitle;
             }
-
+            
             const player = new Artplayer(options);
 
             // attach wake lock behavior
