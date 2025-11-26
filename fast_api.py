@@ -45,15 +45,20 @@ def decode_file_link(file_link: str) -> tuple[int, int]:
 
 
 def get_file_properties(message):
+    channel_id = message.chat.id
+    message_id = message.id
+
+    file_doc = files_col.find_one({"channel_id": channel_id, "message_id": message_id})
+    file_name = file_doc.get("file_name", "") if file_doc else "Unknown"
+
     if message.document:
-        return message.caption or message.document.file_name, message.document.file_size
+        return file_name, message.document.file_size
     elif message.video:
-        return message.caption or message.video.file_name, message.video.file_size
+        return file_name, message.video.file_size
     elif message.audio:
-        return message.audio.file_name, message.audio.file_size
+        return file_name, message.audio.file_size
     else:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Unsupported file type")
-
 
 @api.get("/")
 async def root():
