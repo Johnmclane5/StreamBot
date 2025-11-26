@@ -103,6 +103,24 @@
             font-style: italic;
         }
 
+        .guide-box {
+            text-align: left;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border: 1px solid #6c757d;
+            border-radius: .25rem;
+        }
+
+        .guide-box h5 {
+            font-weight: bold;
+            color: #6c757d;
+        }
+
+        .guide-box ol {
+            padding-left: 1.25rem;
+            margin-bottom: 0;
+        }
+
         .loading {
             position: absolute;
             top: 50%;
@@ -183,10 +201,21 @@
                 <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player</a>
                 <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
                 <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
+                <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream Link</button>
             </div>
 
-            <p class="recommend-note" id="recommend-note">
-                💡 Recommended: Use MX Player / VLC for subtitle and dual audio support.
+            <div id="stream-link-guide" class="guide-box">
+                <h5>How to Play using a Stream Link:</h5>
+                <ol>
+                    <li>Tap the "Copy Stream Link" button.</li>
+                    <li>Open your preferred media player (e.g., VLC).</li>
+                    <li>Find the "Open Network Stream" or similar option.</li>
+                    <li>Paste the link into the URL field and play.</li>
+                </ol>
+            </div>
+
+            <p class="recommend-note">
+                💡 For the best experience, use a dedicated player like MX Player or VLC.
             </p>
         </div>
     </div>
@@ -201,24 +230,19 @@
             const infoContainer = document.querySelector('.info-container');
 
             const setButtonLinks = () => {
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const streamUrl = `${window.location.origin}/stream/${fileLink}`;
 
-                const mxPlayerBtn = document.getElementById('mx-player-btn');
-                const mxProBtn = document.getElementById('mx-pro-btn');
-                const vlcBtn = document.getElementById('vlc-btn');
-                const recommendNote = document.getElementById('recommend-note');
+                document.getElementById('mx-player-btn').href = `/play/mx/${fileLink}`;
+                document.getElementById('mx-pro-btn').href = `/play/mxpro/${fileLink}`;
+                document.getElementById('vlc-btn').href = `/play/vlc/${fileLink}`;
 
-                if (isIOS) {
-                    mxPlayerBtn.style.display = 'none';
-                    mxProBtn.style.display = 'none';
-                    vlcBtn.href = `/play/vlc/${fileLink}`;
-                    vlcBtn.innerText = 'Play in VLC (iOS)';
-                    recommendNote.innerText = '💡 Recommended: Use VLC for subtitle and dual audio support.';
-                } else {
-                    mxPlayerBtn.href = `/play/mx/${fileLink}`;
-                    mxProBtn.href = `/play/mxpro/${fileLink}`;
-                    vlcBtn.href = `/play/vlc/${fileLink}`;
-                }
+                const copyStreamLinkBtn = document.getElementById('copy-stream-link-btn');
+                copyStreamLinkBtn.onclick = () => {
+                    navigator.clipboard.writeText(streamUrl).then(() => {
+                        copyStreamLinkBtn.innerText = 'Copied!';
+                        setTimeout(() => (copyStreamLinkBtn.innerText = 'Copy Stream Link'), 2000);
+                    });
+                };
             };
 
             const showError = (message) => {
