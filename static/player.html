@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>File Details</title>
 
     <!-- Bootstrap -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 
     <style>
-        /* 🔥 Always Dark Mode */
+        /* Always Dark Mode */
         html, body {
             margin: 0;
             background-color: #000 !important;
@@ -18,9 +17,7 @@
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
         }
 
-        a, button {
-            color: inherit;
-        }
+        a, button { color: inherit; }
 
         .wrapper {
             max-width: 900px;
@@ -29,7 +26,7 @@
             text-align: center;
         }
 
-        /* 🎥 Player – FIXED: no background container behind */
+        /* Player container (full width of wrapper; no stray background) */
         .player-box {
             width: 100%;
             background: #000;
@@ -41,25 +38,21 @@
 
         .player-aspect {
             width: 100%;
-            aspect-ratio: 16 / 9;
+            aspect-ratio: 16/9;
             position: relative;
             max-width: 100%;
         }
 
-        .artplayer-app {
-            width: 100%;
-            height: 100%;
-        }
+        .artplayer-app { width: 100%; height: 100%; }
 
         .loading {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: #fff;
         }
 
-        /* 📦 Info Box */
+        /* Info */
         .info-container {
             margin-top: 1.2rem;
             background: #0f0f0f;
@@ -71,14 +64,13 @@
         #file-name {
             font-size: 1.25rem;
             margin: 0;
-            word-break: break-word;
+            /* allow long filenames to wrap */
+            white-space: normal;
             overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
-        #file-size {
-            margin-top: .3rem;
-            color: #aaa;
-        }
+        #file-size { margin-top: .3rem; color: #aaa; }
 
         .recommend-note {
             margin-top: .7rem;
@@ -86,9 +78,9 @@
             color: #4dd0e1;
             text-decoration: underline;
             cursor: pointer;
+            margin-bottom: 0;
         }
 
-        /* Platform Sections */
         .platform-box {
             background: #0d0d0d;
             border: 1px solid #222;
@@ -98,43 +90,27 @@
             text-align: left;
         }
 
-        .platform-box h5 {
-            font-weight: 600;
-            margin-bottom: .6rem;
-            color: #e0e0e0;
-        }
+        .platform-box h5 { font-weight: 600; margin-bottom: .6rem; color: #e0e0e0; }
 
         .button-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .5rem;
-            margin-bottom: .7rem;
+            display:flex;
+            flex-wrap:wrap;
+            gap:.5rem;
+            margin-bottom:.7rem;
         }
 
-        .btn-info {
-            background-color: #0565ff;
-            border-color: #0565ff;
-        }
+        .btn-info { background-color: #0565ff; border-color:#0565ff; }
+        .btn-secondary { background-color:#333; border-color:#555; color:#fff; }
 
-        .btn-secondary {
-            background-color: #333;
-            border-color: #555;
-            color: #fff;
-        }
-
-        /* Mobile */
         @media (max-width: 576px) {
-            .wrapper {
-                padding: 1rem .6rem;
-            }
+            .wrapper { padding: 1rem .6rem; }
         }
     </style>
 </head>
-
 <body>
     <div class="wrapper">
 
-        <!-- 🎥 Player -->
+        <!-- Player -->
         <div class="player-box">
             <div class="player-aspect">
                 <div class="artplayer-app">
@@ -143,17 +119,14 @@
             </div>
         </div>
 
-        <!-- 📦 Info -->
+        <!-- Info -->
         <div class="info-container">
-            <h3 id="file-name"></h3>
+            <h3 id="file-name" title=""></h3>
             <p id="file-size"></p>
 
             💡 For Subtitle and Dual Audio Support, use a dedicated player like MX Player or VLC.
-            <p class="recommend-note" data-toggle="collapse" data-target="#playerOptions">
-                Tap to know more
-            </p>
+            <p class="recommend-note" data-toggle="collapse" data-target="#playerOptions">Tap to know more</p>
 
-            <!-- 🔽 COLLAPSIBLE -->
             <div id="playerOptions" class="collapse">
 
                 <!-- Android -->
@@ -166,14 +139,12 @@
                     </div>
                 </div>
 
-                <!-- iOS / PC -->
+                <!-- iOS/PC -->
                 <div class="platform-box">
                     <h5>For iOS / Windows / Linux</h5>
 
                     <div class="button-group">
-                        <a class="btn btn-info" href="https://www.videolan.org/vlc/#download" target="_blank">
-                            Download VLC
-                        </a>
+                        <a class="btn btn-info" href="https://www.videolan.org/vlc/#download" target="_blank">Download VLC</a>
                     </div>
 
                     <div class="button-group">
@@ -183,14 +154,13 @@
                     <ol>
                         <li>Copy the stream link.</li>
                         <li>Open VLC.</li>
-                        <li>Select “Open Network Stream”.</li>
+                        <li>Select "Open Network Stream".</li>
                         <li>Paste & play.</li>
                     </ol>
                 </div>
 
             </div>
         </div>
-
     </div>
 
     <!-- Bootstrap JS -->
@@ -198,87 +168,190 @@
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
-    <!-- Player Script -->
-    <script defer>
-        (async () => {
-            const rawFile = window.location.pathname.split('/').pop() || '';
-            const encoded = encodeURIComponent(rawFile);
-            const streamUrl = `/stream/${encoded}`;
-            const loading = document.getElementById('loading');
+    <!-- Player script with subtitle + fullscreen + wake-lock + resume -->
+    <script>
+    (async () => {
+        const rawFile = window.location.pathname.split('/').pop() || '';
+        const encoded = encodeURIComponent(rawFile);
+        const streamUrl = `/stream/${encoded}`;
+        const loadingEl = document.getElementById('loading');
+        const fileNameEl = document.getElementById('file-name');
 
-            function setAndroidLinks() {
-                const full = `${location.origin}/stream/${encoded}`;
+        // Insert zero-width space after dots so long dotted names can break nicely
+        function makeBreakableName(name) {
+            if (!name) return '';
+            return name.replace(/\./g, '.\u200B');
+        }
 
-                document.getElementById('mx-player-btn').href = `/play/mx/${encoded}`;
-                document.getElementById('mx-pro-btn').href = `/play/mxpro/${encoded}`;
-                document.getElementById('vlc-btn').href = `/play/vlc/${encoded}`;
+        const setButtonLinks = () => {
+            const full = `${location.origin}/stream/${encoded}`;
+            const mx = document.getElementById('mx-player-btn');
+            const mxp = document.getElementById('mx-pro-btn');
+            const vlc = document.getElementById('vlc-btn');
 
-                const btn = document.getElementById('copy-stream-link-btn');
-                btn.onclick = () => {
+            if (mx) mx.href = `/play/mx/${encoded}`;
+            if (mxp) mxp.href = `/play/mxpro/${encoded}`;
+            if (vlc) vlc.href = `/play/vlc/${encoded}`;
+
+            const copyBtn = document.getElementById('copy-stream-link-btn');
+            if (copyBtn) {
+                copyBtn.onclick = () => {
                     navigator.clipboard.writeText(full).then(() => {
-                        btn.innerText = 'Copied!';
-                        setTimeout(() => btn.innerText = 'Copy Stream Link', 2000);
+                        const prev = copyBtn.innerText;
+                        copyBtn.innerText = 'Copied!';
+                        setTimeout(() => (copyBtn.innerText = prev), 2000);
+                    }).catch(() => {
+                        // fallback: select prompt
+                        alert('Could not copy automatically. URL: ' + full);
                     });
                 };
             }
+        };
 
-            function loadScript(src) {
-                return new Promise((resolve, reject) => {
-                    const s = document.createElement('script');
-                    s.src = src;
-                    s.onload = resolve;
-                    s.onerror = reject;
-                    document.head.appendChild(s);
-                });
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        // WakeLock / NoSleep handling
+        let wakeLock = null;
+        let noSleep = null;
+        const requestWakeLock = async () => {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => (wakeLock = null));
+                } catch (err) { console.warn('WakeLock failed', err); }
+            } else if (noSleep) {
+                try { noSleep.enable(); } catch (e) { console.warn('NoSleep enable failed', e); }
             }
-
-            async function initPlayer(details) {
-                loading.style.display = 'none';
-
-                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
-
-                const player = new Artplayer({
-                    container: '.artplayer-app',
-                    url: streamUrl,
-                    title: details.file_name || rawFile,
-                    autoSize: true,
-                    playsInline: true
-                });
-
-                const key = `resume_${encoded}`;
-                const saved = parseFloat(localStorage.getItem(key) || '0');
-
-                player.on('video:loadedmetadata', () => {
-                    if (saved > 0 && saved < player.duration - 2) {
-                        player.currentTime = saved;
-                    }
-                });
-
-                player.on('timeupdate', () => {
-                    if (!player.video.paused) {
-                        localStorage.setItem(key, player.currentTime);
-                    }
-                });
-
-                player.on('ended', () => localStorage.removeItem(key));
+        };
+        const releaseWakeLock = async () => {
+            if (wakeLock) {
+                try { await wakeLock.release(); } catch { }
+                wakeLock = null;
             }
-
-            setAndroidLinks();
-
+            if (noSleep) {
+                try { noSleep.disable(); } catch { }
+            }
+        };
+        const attachWakeLockHandlers = (player) => {
             try {
-                const res = await fetch(`/details/${encoded}`);
-                const data = await res.json();
+                player.on('play', async () => await requestWakeLock());
+                player.on('pause', async () => await releaseWakeLock());
+                document.addEventListener('visibilitychange', async () => {
+                    const videoEl = document.querySelector('.artplayer-app video');
+                    const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
+                    if (document.visibilityState === 'visible' && isPlaying && !wakeLock) {
+                        await requestWakeLock();
+                    } else {
+                        await releaseWakeLock();
+                    }
+                });
+                window.addEventListener('beforeunload', async () => await releaseWakeLock());
+            } catch (e) { /* ignore */ }
+        };
 
-                document.getElementById('file-name').innerText = data.file_name || rawFile;
-                document.getElementById('file-size').innerText = data.file_size || '';
+        async function initPlayer(details) {
+            loadingEl.style.display = 'none';
 
-                initPlayer(data);
-            } catch (e) {
-                document.getElementById('file-name').innerText = rawFile;
-                initPlayer({});
+            // load artplayer and nosleep
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js');
+
+            // init NoSleep if available
+            if (typeof NoSleep !== 'undefined') {
+                try { noSleep = new NoSleep(); } catch (e) { /* ignore */ }
             }
-        })();
-    </script>
 
+            // build options
+            const opts = {
+                container: '.artplayer-app',
+                url: streamUrl,
+                title: details.file_name || decodeURIComponent(rawFile),
+                autoplay: false,
+                autoSize: true,
+                playsInline: true,
+                fullscreen: true,
+                miniProgressBar: true,
+                fastForward: true,
+                subtitle: {}
+            };
+
+            if (details.subtitle_url) {
+                opts.subtitle = {
+                    url: details.subtitle_url,
+                    type: details.subtitle_type || 'srt',
+                    encoding: details.subtitle_encoding || 'utf-8',
+                    default: true,
+                    escape: false,
+                    style: { color: '#FFFFFF', fontSize: '18px', fontWeight: 'bold' },
+                };
+            } else {
+                // keep subtitle empty; Artplayer won't show subtitle controls if no url
+                delete opts.subtitle;
+            }
+
+            const player = new Artplayer(opts);
+
+            // attach wakelock handlers
+            attachWakeLockHandlers(player);
+
+            // resume playback
+            const resumeKey = `resumeTime_${encoded}`;
+            const savedTime = parseFloat(localStorage.getItem(resumeKey) || '0');
+
+            player.on('video:loadedmetadata', () => {
+                try {
+                    if (savedTime > 0 && savedTime < player.duration - 3) {
+                        player.currentTime = savedTime;
+                        // console.log('resumed at', savedTime);
+                    }
+                } catch (e) { /* ignore */ }
+            });
+
+            player.on('timeupdate', () => {
+                try {
+                    if (!player.video.paused && !player.video.ended) {
+                        localStorage.setItem(resumeKey, player.currentTime);
+                    }
+                } catch (e) { /* ignore */ }
+            });
+
+            player.on('ended', () => localStorage.removeItem(resumeKey));
+        }
+
+        // page wiring
+        setButtonLinks();
+
+        try {
+            const res = await fetch(`/details/${encoded}`);
+            if (!res.ok) throw new Error('Failed to fetch details');
+            const data = await res.json();
+
+            // make filename breakable but keep original in title
+            const originalName = data.file_name || rawFile;
+            const breakable = makeBreakableName(originalName);
+            fileNameEl.innerText = breakable;
+            fileNameEl.title = originalName;
+
+            document.getElementById('file-size').innerText = data.file_size || '';
+
+            await initPlayer(data);
+        } catch (err) {
+            // fallback
+            const fallback = makeBreakableName(rawFile);
+            fileNameEl.innerText = fallback;
+            fileNameEl.title = rawFile;
+            await initPlayer({});
+        }
+    })();
+    </script>
 </body>
 </html>

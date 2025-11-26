@@ -23,7 +23,7 @@ async def send_log_file(client, message: Message):
         if not os.path.exists(log_file):
             await message.reply_text("Log file not found.")
             return
-        reply = client.send_document(message.chat.id, log_file, caption="Here is the log file.")
+        reply = await client.send_document(message.chat.id, log_file, caption="Here is the log file.")
         bot.loop.create_task(auto_delete_message(message, reply))
     except Exception as e:
         pass
