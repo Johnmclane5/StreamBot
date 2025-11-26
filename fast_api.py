@@ -13,7 +13,7 @@ from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
 from app import get_worker_bot, Bot, cache
-from config import MY_DOMAIN, CHUNK_SIZE, CONCURRENCY_LIMIT
+from config import MY_DOMAIN, CHUNK_SIZE
 from db import files_col
 
 api = FastAPI()
@@ -26,6 +26,7 @@ api.add_middleware(
     allow_headers=["*"],
 )
 
+CONCURRENCY_LIMIT = 5
 semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
 
 MAX_RETRIES = 3       
@@ -220,7 +221,7 @@ async def serve_subtitle(file_link: str, request: Request):
     channel_id, message_id = decode_file_link(file_link)
     media_streamer, _, _, file_size, _ = await get_file_stream(channel_id, message_id, request)
     headers = {
-        "Content-Type": "application/x-subrip",
+        "Content-Type": "text/plain",
         "Content-Length": str(file_size),
     }
     return StreamingResponse(media_streamer(), headers=headers)
@@ -262,7 +263,7 @@ async def get_file_details(file_link: str):
         "mime_type": mime_type,
         "subtitle_url": subtitle_url
     })
-
+    
 @api.get("/play/{player}/{file_link}")
 async def play_in_player(player: str, file_link: str):
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
@@ -275,4 +276,3 @@ async def play_in_player(player: str, file_link: str):
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
     return RedirectResponse(url=redirect_url, status_code=302)
-
