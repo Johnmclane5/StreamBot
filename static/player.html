@@ -183,6 +183,7 @@
                 <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player</a>
                 <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">Play in MX Player Pro</a>
                 <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">Play in VLC</a>
+                <a id="vlc-ios-btn" class="btn btn-info" href="#" target="_blank">Play in VLC (iOS)</a>
             </div>
 
             <p class="recommend-note">
@@ -204,6 +205,7 @@
                 document.getElementById('mx-player-btn').href = `/play/mx/${fileLink}`;
                 document.getElementById('mx-pro-btn').href = `/play/mxpro/${fileLink}`;
                 document.getElementById('vlc-btn').href = `/play/vlc/${fileLink}`;
+                document.getElementById('vlc-ios-btn').href = `/play/vlc-ios/${fileLink}`;
             };
 
             const showError = (message) => {
