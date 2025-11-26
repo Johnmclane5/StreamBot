@@ -45,18 +45,12 @@ def decode_file_link(file_link: str) -> tuple[int, int]:
 
 
 def get_file_properties(message):
-    channel_id = message.chat.id
-    message_id = message.id
-
-    file_doc = files_col.find_one({"channel_id": channel_id, "message_id": message_id})
-    file_name = file_doc.get("file_name", "") if file_doc else "Unknown"
-
     if message.document:
-        return file_name, message.document.file_size
+        return message.caption or message.document.file_name, message.document.file_size
     elif message.video:
-        return file_name, message.video.file_size
+        return message.caption or message.video.file_name, message.video.file_size
     elif message.audio:
-        return file_name, message.audio.file_size
+        return message.audio.file_name, message.audio.file_size
     else:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Unsupported file type")
 
@@ -237,7 +231,6 @@ async def get_file_details(file_link: str):
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
     file_name, file_size = get_file_properties(message)
-    
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
         mime_type = "video/mp4"
@@ -261,20 +254,15 @@ async def get_file_details(file_link: str):
     })
 
 @api.get("/play/{player}/{file_link}")
-async def play_in_player(player: str, file_link: str, request: Request):
+async def play_in_player(player: str, file_link: str):
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
-    user_agent = request.headers.get("user-agent", "").lower()
-    is_ios = "iphone" in user_agent or "ipad" in user_agent or "ipod" in user_agent
-
     if player == "mx":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end"
     elif player == "mxpro":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.pro;end"
     elif player == "vlc":
-        if is_ios:
-            redirect_url = f"vlc-x-callback://x-callback-url/stream?url={quote(stream_url)}"
-        else:
-            redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end"
+        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end"
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
     return RedirectResponse(url=redirect_url, status_code=302)
+
