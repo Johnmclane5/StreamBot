@@ -104,6 +104,15 @@
         @media (max-width: 576px) {
             .wrapper { padding: 1rem .6rem; }
         }
+        
+        /* Keep subtitles visible even when controls are hidden */
+        .art-subtitle {
+            opacity: 1 !important;
+            display: block !important;
+            visibility: visible !important;
+            pointer-events: none !important;
+            transition: none !important;
+        }
     </style>
 </head>
 <body>
