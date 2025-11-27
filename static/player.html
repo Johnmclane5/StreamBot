@@ -104,15 +104,6 @@
         @media (max-width: 576px) {
             .wrapper { padding: 1rem .6rem; }
         }
-        
-        /* Keep subtitles visible even when controls are hidden */
-        .art-subtitle {
-            opacity: 1 !important;
-            display: block !important;
-            visibility: visible !important;
-            pointer-events: none !important;
-            transition: none !important;
-        }
     </style>
 </head>
 <body>
@@ -299,7 +290,7 @@
                     encoding: details.subtitle_encoding || 'utf-8',
                     default: true,
                     escape: false,
-                    fixed: true,         
+                    stay: true,
                     style: { color: '#FFFFFF', fontSize: '18px', fontWeight: 'bold' }
                 };
             }
