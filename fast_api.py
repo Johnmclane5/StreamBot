@@ -242,7 +242,7 @@ async def get_file_details(file_link: str):
     if not message:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
-    file_name, file_size = get_file_properties(message)
+    file_name, file_size = await get_file_properties(message)
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
         mime_type = "video/mp4"
