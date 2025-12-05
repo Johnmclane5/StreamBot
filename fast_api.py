@@ -45,12 +45,12 @@ def decode_file_link(file_link: str) -> tuple[int, int]:
         raise HTTPException(status_code=400, detail="Invalid file link")
 
 
-def get_file_properties(message):
+async def get_file_properties(message):
     channel_id = message.chat.id
     message_id = message.id
 
     # Try to get file doc from DB
-    file_doc = files_col.find_one({"channel_id": channel_id, "message_id": message_id})
+    file_doc = await files_col.find_one({"channel_id": channel_id, "message_id": message_id})
     file_name = file_doc.get("file_name") if file_doc else None
 
     # Extract file info from Telegram message
@@ -82,7 +82,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
     if not message:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
-    file_name, file_size = get_file_properties(message)
+    file_name, file_size = await get_file_properties(message)
     range_header = request.headers.get("range")
     start, end = 0, file_size - 1
 
@@ -251,7 +251,7 @@ async def get_file_details(file_link: str):
     subtitle_url = None
     subtitle_name = f"{file_name}.srt"
     
-    subtitle_doc = files_col.find_one({"file_name": subtitle_name})
+    subtitle_doc = await files_col.find_one({"file_name": subtitle_name})
     if subtitle_doc:
         bot_instance = Bot("temp_instance")
         subtitle_link = bot_instance.encode_file_link(subtitle_doc['channel_id'], subtitle_doc['message_id'])
