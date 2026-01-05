@@ -265,15 +265,6 @@
         async function initPlayer(details) {
             loadingEl.style.display = 'none';
 
-            const style = document.createElement('style');
-            style.textContent = `
-                .artplayer-app.artplayer-hide-controls .art-subtitle {
-                    visibility: visible !important;
-                    opacity: 1 !important;
-                }
-            `;
-            document.head.appendChild(style);
-
             // load Artplayer + NoSleep
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js');
@@ -309,6 +300,14 @@
             }
             
             const player = new Artplayer(options);
+
+            setInterval(() => {
+                const subtitleEl = player.template.$subtitle;
+                if (subtitleEl && subtitleEl.style.visibility !== 'visible') {
+                    subtitleEl.style.visibility = 'visible';
+                    subtitleEl.style.opacity = '1';
+                }
+            }, 100);
 
             // 🔹 NEW: Custom error handling for concurrency limit
             player.on('error', (error, reconnect) => {
