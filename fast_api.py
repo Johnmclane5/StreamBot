@@ -190,6 +190,17 @@ async def get_file_stream(channel_id, message_id, request: Request):
 @api.head("/stream/{file_link}")
 async def stream_file(file_link: str, request: Request):
     channel_id, message_id = decode_file_link(file_link)
+
+    # 🔹 NEW: Check if the first chunk is cached to decide if we need to hit the semaphore
+    first_chunk_cached = await cache.get(f"{channel_id}_{message_id}_0") is not None
+
+    # If the first chunk isn't cached and the semaphore is locked, we're at capacity
+    if not first_chunk_cached and semaphore.locked():
+        raise HTTPException(
+            status_code=503,
+            detail="Server is busy, please try again later."
+        )
+
     media_streamer, start, end, file_size, file_name = await get_file_stream(channel_id, message_id, request)
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
