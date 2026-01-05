@@ -106,8 +106,13 @@
         }
         
         /* Keep subtitles visible even when controls are hidden */
-        .artplayer-app.artplayer-hide-controls .art-subtitle {
+        .art-subtitle {
+            bottom: 50px !important;
+            opacity: 1 !important;
+            display: block !important;
             visibility: visible !important;
+            pointer-events: none !important;
+            transition: none !important;
         }
     </style>
 </head>
@@ -284,43 +289,23 @@
                 fullscreen: true,
                 miniProgressBar: true,
                 fastForward: true,
-                subtitle: {
-                    stay: true,
-                }
+                subtitle: {}
             };
 
             // If backend provides subtitle_url, set subtitle config
             if (details.subtitle_url) {
-                options.subtitle.url = details.subtitle_url;
-                options.subtitle.type = details.subtitle_type || 'srt';
-                options.subtitle.encoding = details.subtitle_encoding || 'utf-8';
-                options.subtitle.default = true;
-                options.subtitle.escape = false;
-                options.subtitle.style = { color: '#FFFFFF', fontSize: '18px', fontWeight: 'bold' };
+                options.subtitle = {
+                    url: details.subtitle_url,
+                    type: details.subtitle_type || 'srt',
+                    encoding: details.subtitle_encoding || 'utf-8',
+                    default: true,
+                    escape: false,
+                    stay: true,
+                    style: { color: '#FFFFFF', fontSize: '18px', fontWeight: 'bold' }
+                };
             }
             
             const player = new Artplayer(options);
-
-            setInterval(() => {
-                const subtitleEl = player.template.$subtitle;
-                if (subtitleEl && subtitleEl.style.visibility !== 'visible') {
-                    subtitleEl.style.visibility = 'visible';
-                    subtitleEl.style.opacity = '1';
-                }
-            }, 100);
-
-            // 🔹 NEW: Custom error handling for concurrency limit
-            player.on('error', (error, reconnect) => {
-                if (error.response && error.response.status === 503) {
-                    console.warn('Server is busy (503). Showing notice.');
-                    player.notice.show('Limit reached, try again later.');
-                    
-                    // a way to stop artplayer's built-in reconnection logic
-                    if (typeof reconnect === 'function') {
-                        reconnect = () => {};
-                    }
-                }
-            });
 
             // attach wake lock behavior
             attachWakeLockHandlers(player);
