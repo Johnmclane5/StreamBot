@@ -13,7 +13,7 @@ from pyrogram.errors import ChannelInvalid, FloodWait, RPCError
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
-from app import get_worker_bot, release_worker, cache, Bot, worker_bots, worker_queue
+from app import get_worker_bot, cache, Bot
 from config import MY_DOMAIN, CHUNK_SIZE
 from db import files_col
 
@@ -26,6 +26,9 @@ api.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+CONCURRENCY_LIMIT = 4
+semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
 
 MAX_RETRIES = 3       
 RETRY_DELAY = 3     
@@ -64,35 +67,19 @@ async def get_file_properties(message):
 
     return actual_file_name, media.file_size
 
-@api.on_event("startup")
-async def startup():
-    for bot in worker_bots:
-        await bot.start()
-        await worker_queue.put(bot)
-
-@api.on_event("shutdown")
-async def shutdown():
-    for bot in worker_bots:
-        await bot.stop()
-
 @api.get("/")
 async def root():
     return JSONResponse({"message": "👋 Hola Amigo!"})
 
 
 async def get_file_stream(channel_id, message_id, request: Request):
-    worker = await get_worker_bot()
+    worker = get_worker_bot()
     try:
         message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
     except ChannelInvalid:
-        await release_worker(worker)
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
-    except Exception:
-        await release_worker(worker)
-        raise HTTPException(status_code=500, detail="Something went wrong")
 
     if not message:
-        await release_worker(worker)
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
     file_name, file_size = await get_file_properties(message)
@@ -111,17 +98,17 @@ async def get_file_stream(channel_id, message_id, request: Request):
     bytes_to_send = end - start + 1
 
     async def media_streamer():
-        try:
-            bytes_sent = 0
-            current_chunk_index = chunk_offset
-            is_first_chunk = True
+        bytes_sent = 0
+        current_chunk_index = chunk_offset
+        is_first_chunk = True
 
-            while bytes_sent < bytes_to_send:
-                cache_key = f"{channel_id}_{message_id}_{current_chunk_index}"
-                chunk = await cache.get(cache_key)
+        while bytes_sent < bytes_to_send:
+            cache_key = f"{channel_id}_{message_id}_{current_chunk_index}"
+            chunk = await cache.get(cache_key)
 
-                if chunk is None:
-                    # Cache miss: Start streaming from the worker
+            if chunk is None:
+                # Cache miss: Start streaming from the worker
+                async with semaphore:
                     # 🔹 NEW: Add retry mechanism for Telegram timeout or RPC errors
                     for attempt in range(1, MAX_RETRIES + 1):
                         try:
@@ -182,21 +169,19 @@ async def get_file_stream(channel_id, message_id, request: Request):
                                 continue
                             else:
                                 raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
-                else:
-                    # Cache hit: Serve the chunk from the cache
-                    if is_first_chunk:
-                        chunk = chunk[byte_offset_in_chunk:]
-                        is_first_chunk = False
+            else:
+                # Cache hit: Serve the chunk from the cache
+                if is_first_chunk:
+                    chunk = chunk[byte_offset_in_chunk:]
+                    is_first_chunk = False
 
-                    remaining_bytes = bytes_to_send - bytes_sent
-                    if len(chunk) > remaining_bytes:
-                        chunk = chunk[:remaining_bytes]
+                remaining_bytes = bytes_to_send - bytes_sent
+                if len(chunk) > remaining_bytes:
+                    chunk = chunk[:remaining_bytes]
 
-                    yield chunk
-                    bytes_sent += len(chunk)
-                    current_chunk_index += 1
-        finally:
-            await release_worker(worker)
+                yield chunk
+                bytes_sent += len(chunk)
+                current_chunk_index += 1
 
     return media_streamer, start, end, file_size, file_name
 
@@ -249,13 +234,11 @@ async def play_video(file_link: str):
 @api.get("/details/{file_link}")
 async def get_file_details(file_link: str):
     channel_id, message_id = decode_file_link(file_link)
-    worker = await get_worker_bot()
+    worker = get_worker_bot()
     try:
         message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
     except ChannelInvalid:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
-    finally:
-        await release_worker(worker)
     if not message:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 

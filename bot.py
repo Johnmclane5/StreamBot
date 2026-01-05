@@ -19,6 +19,9 @@ async def main():
     try:
         await bot.start()
         logging.info("Main bot started.")
+        for worker in worker_bots:
+            await worker.start()
+        logging.info("Multi client started.")
         await bot.send_message(LOG_CHANNEL_ID, "Bot started successfully!")
     except Exception as e:
         logging.error(f"Failed to start clients: {e}")
