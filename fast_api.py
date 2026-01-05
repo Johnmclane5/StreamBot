@@ -140,7 +140,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
                             bytes_sent += len(chunk)
                             current_chunk_index += 1
 
-                            if bytes_sent >= bytes_to_end:
+                            if bytes_sent >= bytes_to_send:
                                 break
 
                         # ✅ Success, exit retry loop
