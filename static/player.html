@@ -108,7 +108,6 @@
         /* Keep subtitles visible even when controls are hidden */
         .artplayer-app.artplayer-hide-controls .art-subtitle {
             visibility: visible !important;
-            opacity: 1 !important;
         }
     </style>
 </head>
@@ -301,6 +300,14 @@
             }
             
             const player = new Artplayer(options);
+
+            player.on('control:hide', () => {
+                const subtitleEl = player.template.$subtitle;
+                if (subtitleEl) {
+                    subtitleEl.style.visibility = 'visible';
+                    subtitleEl.style.opacity = '1';
+                }
+            });
 
             // 🔹 NEW: Custom error handling for concurrency limit
             player.on('error', (error, reconnect) => {
