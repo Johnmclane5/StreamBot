@@ -3,10 +3,12 @@ import asyncio
 import base64
 from pyrogram import Client, enums
 from config import API_ID, API_HASH, BOT_TOKEN, WORKER_BOT_TOKENS, CACHE_SIZE, CACHE_DIR
-from itertools import cycle
+from asyncio import Queue
 from utility import Cache
 
 cache = Cache(CACHE_DIR, CACHE_SIZE)
+
+worker_queue = Queue()
 
 class Bot(Client):
     def __init__(self, *args, **kwargs):
@@ -43,9 +45,10 @@ worker_bots = [
     for i, token in enumerate(WORKER_BOT_TOKENS)
 ]
 
-# Round-robin for worker bots. This distributes the load of download/stream requests
-# across the available worker bots. It does not use multiple bots for a single download.
-worker_cycle = cycle(worker_bots)
+async def get_worker_bot():
+    """Gets a worker from the queue."""
+    return await worker_queue.get()
 
-def get_worker_bot():
-    return next(worker_cycle)
+async def release_worker(worker):
+    """Releases a worker back to the queue."""
+    await worker_queue.put(worker)
