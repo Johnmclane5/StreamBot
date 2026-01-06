@@ -51,6 +51,38 @@
             color: #fff;
         }
 
+        /* 🔹 NEW: Queue Overlay */
+        .queue-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 1rem;
+            z-index: 10;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Info */
         .info-container {
             margin-top: 1.2rem;
@@ -125,6 +157,12 @@
                 <div class="artplayer-app">
                     <div class="loading" id="loading">Loading video...</div>
                 </div>
+                <!-- 🔹 NEW: Queue Overlay -->
+                <div class="queue-overlay" id="queue-overlay" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>You're in a queue. We'll start your stream shortly...</p>
+                    <p><small>Retrying automatically...</small></p>
+                </div>
             </div>
         </div>
 
@@ -186,6 +224,7 @@
         const streamUrl = `/stream/${encoded}`;
         const loadingEl = document.getElementById('loading');
         const fileNameEl = document.getElementById('file-name');
+        const queueOverlay = document.getElementById('queue-overlay');
 
         // make breakable filename (zero-width after dots)
         function makeBreakableName(name) {
@@ -305,6 +344,17 @@
             
             const player = new Artplayer(options);
 
+            // 🔹 NEW: Handle race conditions by catching player errors
+            player.on('error', (error, reconnect) => {
+                console.warn('Artplayer error:', error);
+                
+                // If the error is due to a 503, show the queue and retry
+                if (player.video.error && player.video.error.code === 2) { // MEDIA_ERR_NETWORK
+                    player.destroy(); 
+                    checkStreamAndInit();
+                }
+            });
+
             // attach wake lock behavior
             attachWakeLockHandlers(player);
 
@@ -350,28 +400,60 @@
 
         setButtonLinks();
 
-        try {
-            const res = await fetch(`/details/${encoded}`);
-            if (!res.ok) throw new Error('details fetch failed');
-            const data = await res.json();
+        // 🔹 NEW: Check stream availability and handle queue
+        async function checkStreamAndInit() {
+            try {
+                const res = await fetch(streamUrl, { method: 'HEAD' });
 
-            // filename: make breakable & keep title as original
-            const originalName = data.file_name || rawFile;
-            const breakable = makeBreakableName(originalName);
-            fileNameEl.innerText = breakable;
-            fileNameEl.title = originalName;
+                if (res.status === 503) {
+                    // Server is busy, show queue and retry
+                    loadingEl.style.display = 'none';
+                    queueOverlay.style.display = 'flex';
+                    setTimeout(checkStreamAndInit, 30000); // Retry after 30s
+                    return;
+                }
 
-            document.getElementById('file-size').innerText = data.file_size || '';
+                if (!res.ok) {
+                    // Handle other errors if necessary, for now, just log and proceed
+                    console.warn(`Stream check failed with status: ${res.status}`);
+                }
 
-            await initPlayer(data);
-        } catch (err) {
-            // fallback
-            const fallback = makeBreakableName(rawFile);
-            fileNameEl.innerText = fallback;
-            fileNameEl.title = rawFile;
+                // If check is successful, hide queue and proceed to fetch details
+                queueOverlay.style.display = 'none';
+                await fetchDetailsAndInitPlayer();
 
-            await initPlayer({});
+            } catch (error) {
+                console.error('Error checking stream, retrying...', error);
+                loadingEl.innerText = 'Error connecting. Retrying...';
+                setTimeout(checkStreamAndInit, 10000); // Retry on network error
+            }
         }
+
+        async function fetchDetailsAndInitPlayer() {
+            try {
+                const res = await fetch(`/details/${encoded}`);
+                if (!res.ok) throw new Error('details fetch failed');
+                const data = await res.json();
+
+                // filename: make breakable & keep title as original
+                const originalName = data.file_name || rawFile;
+                const breakable = makeBreakableName(originalName);
+                fileNameEl.innerText = breakable;
+                fileNameEl.title = originalName;
+
+                document.getElementById('file-size').innerText = data.file_size || '';
+
+                await initPlayer(data);
+            } catch (err) {
+                // fallback
+                const fallback = makeBreakableName(rawFile);
+                fileNameEl.innerText = fallback;
+                fileNameEl.title = rawFile;
+                await initPlayer({});
+            }
+        }
+
+        await checkStreamAndInit();
     })();
     </script>
 </body>
