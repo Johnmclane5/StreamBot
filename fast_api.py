@@ -36,7 +36,7 @@ RETRY_DELAY = 3
 logger = logging.getLogger(__name__)
 
 
-def decode_file_link(file_link: str) -> tuple[int, int]:
+async def decode_file_link(file_link: str) -> tuple[int, int]:
     try:
         padding = '=' * (-len(file_link) % 4)
         decoded = base64.urlsafe_b64decode(file_link + padding).decode()
@@ -261,7 +261,7 @@ async def get_file_stream(channel_id, message_id, request: Request, semaphore_ac
 @api.get("/stream/{file_link}")
 @api.head("/stream/{file_link}")
 async def stream_file(file_link: str, request: Request):
-    channel_id, message_id = decode_file_link(file_link)
+    channel_id, message_id = await decode_file_link(file_link)
 
     # Check if first chunk is cached to decide if we need to acquire a semaphore permit.
     first_chunk_cached = await cache.get(f"{channel_id}_{message_id}_0") is not None
@@ -300,7 +300,7 @@ async def stream_file(file_link: str, request: Request):
 '''
 @api.get("/download/{file_link}")
 async def download_file(file_link: str, request: Request):
-    channel_id, message_id = decode_file_link(file_link)
+    channel_id, message_id = await decode_file_link(file_link)
     media_streamer, _, _, file_size, file_name = await get_file_stream(channel_id, message_id, request)
     headers = {
         "Content-Disposition": f"attachment; filename=\"{file_name}\"",
@@ -313,7 +313,7 @@ async def download_file(file_link: str, request: Request):
 
 @api.get("/subtitle/{file_link}")
 async def serve_subtitle(file_link: str, request: Request):
-    channel_id, message_id = decode_file_link(file_link)
+    channel_id, message_id = await decode_file_link(file_link)
     media_streamer, _, _, file_size, _ = await get_file_stream(channel_id, message_id, request)
     headers = {
         "Content-Type": "text/plain",
@@ -329,7 +329,7 @@ async def play_video(file_link: str):
 
 @api.get("/details/{file_link}")
 async def get_file_details(file_link: str):
-    channel_id, message_id = decode_file_link(file_link)
+    channel_id, message_id = await decode_file_link(file_link)
     worker = get_worker_bot()
     try:
         message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
