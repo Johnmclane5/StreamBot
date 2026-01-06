@@ -1,12 +1,15 @@
 import re
 import asyncio
 import base64
-from pyrogram import Client, enums
+from pyrogram import Client, enums, utils as pyroutils
 from config import API_ID, API_HASH, BOT_TOKEN, WORKER_BOT_TOKENS, CACHE_SIZE, CACHE_DIR
 from itertools import cycle
 from utility import Cache
 
 cache = Cache(CACHE_DIR, CACHE_SIZE)
+
+pyroutils.MIN_CHAT_ID = -999999999999
+pyroutils.MIN_CHANNEL_ID = -100999999999999
 
 class Bot(Client):
     def __init__(self, *args, **kwargs):
@@ -39,7 +42,7 @@ bot = Bot(
 
 # Initialize worker bots
 worker_bots = [
-    Client(f"worker_{i}", api_id=API_ID, api_hash=API_HASH, bot_token=token, sleep_threshold=60, no_updates=True, max_concurrent_transmissions=4)
+    Client(f"worker_{i}", api_id=API_ID, api_hash=API_HASH, bot_token=token)
     for i, token in enumerate(WORKER_BOT_TOKENS)
 ]
 

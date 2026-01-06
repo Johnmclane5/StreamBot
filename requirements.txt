@@ -1,4 +1,4 @@
-Pyrofork==2.3.68
+pyrofork==2.2.11
 fastapi==0.119.0
 pymongo==4.6.3
 python-dotenv==1.1.1
