@@ -7,7 +7,6 @@ from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pyrogram.errors import ChannelInvalid, FloodWait, RPCError
-from pyrogram.errors.exceptions.internal_server_error_500 import Timeout
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
@@ -157,7 +156,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
                         await asyncio.sleep(e.value)
                         continue
 
-                    except (asyncio.TimeoutError, Timeout):
+                    except (asyncio.TimeoutError):
                         # 🔹 NEW: Handle async timeout gracefully
                         logger.warning(f"Timeout fetching chunk {current_chunk_index}, retry {attempt}/{MAX_RETRIES}")
                         await asyncio.sleep(RETRY_DELAY)
