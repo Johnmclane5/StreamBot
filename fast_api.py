@@ -1,15 +1,13 @@
-# (Full file contents with the concurrency-fix changes)
+
 import base64
 import asyncio
-import re
 import mimetypes
-import os
 import logging
-from urllib.parse import quote
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse, HTMLResponse
+from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pyrogram.errors import ChannelInvalid, FloodWait, RPCError, Timeout
+from pyrogram.errors import ChannelInvalid, FloodWait, RPCError
+from pyrogram.errors.exceptions.internal_server_error_500 import Timeout
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
@@ -30,8 +28,8 @@ api.add_middleware(
 CONCURRENCY_LIMIT = 4
 semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
 
-MAX_RETRIES = 3
-RETRY_DELAY = 3
+MAX_RETRIES = 3       
+RETRY_DELAY = 3     
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +53,7 @@ async def get_file_properties(message):
 
     # Extract file info from Telegram message
     media = message.document or message.video or message.audio
-
+    
     if not media:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -67,17 +65,12 @@ async def get_file_properties(message):
 
     return actual_file_name, media.file_size
 
-
 @api.get("/")
 async def root():
     return JSONResponse({"message": "👋 Hola Amigo!"})
 
 
-async def get_file_stream(channel_id, message_id, request: Request, semaphore_acquired: bool = False):
-    """
-    Returns (media_streamer, start, end, file_size, file_name)
-    semaphore_acquired: True if the caller already acquired one permit for this request.
-    """
+async def get_file_stream(channel_id, message_id, request: Request):
     worker = get_worker_bot()
     try:
         message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
@@ -106,158 +99,87 @@ async def get_file_stream(channel_id, message_id, request: Request, semaphore_ac
         bytes_sent = 0
         current_chunk_index = chunk_offset
         is_first_chunk = True
-        released = False  # track if we need to release semaphore at the end
 
-        try:
-            while bytes_sent < bytes_to_send:
-                cache_key = f"{channel_id}_{message_id}_{current_chunk_index}"
-                chunk = await cache.get(cache_key)
+        while bytes_sent < bytes_to_send:
+            cache_key = f"{channel_id}_{message_id}_{current_chunk_index}"
+            chunk = await cache.get(cache_key)
 
-                if chunk is None:
-                    # Cache miss: Start streaming from the worker
-                    # If caller already acquired the semaphore, we won't re-acquire.
-                    if not semaphore_acquired:
-                        # acquire per-request (this will block here until a permit is available)
-                        async with semaphore:
-                            # perform streaming while holding permit
-                            for attempt in range(1, MAX_RETRIES + 1):
-                                try:
-                                    stream = worker.stream_media(message, offset=current_chunk_index)
+            if chunk is None:
+                # Cache miss: Start streaming from the worker
+                async with semaphore:
+                    # 🔹 NEW: Add retry mechanism for Telegram timeout or RPC errors
+                    for attempt in range(1, MAX_RETRIES + 1):
+                        try:
+                            stream = worker.stream_media(message, offset=current_chunk_index)
 
-                                    async for chunk_data in stream:
-                                        # Cache the new chunk
-                                        await cache.put(f"{channel_id}_{message_id}_{current_chunk_index}", chunk_data)
+                            async for chunk_data in stream:
+                                # Cache the new chunk
+                                await cache.put(f"{channel_id}_{message_id}_{current_chunk_index}", chunk_data)
 
-                                        # Handle byte offset on the very first chunk
-                                        if is_first_chunk:
-                                            chunk = chunk_data[byte_offset_in_chunk:]
-                                            is_first_chunk = False
-                                        else:
-                                            chunk = chunk_data
+                                # Handle byte offset on the very first chunk
+                                if is_first_chunk:
+                                    chunk = chunk_data[byte_offset_in_chunk:]
+                                    is_first_chunk = False
+                                else:
+                                    chunk = chunk_data
 
-                                        # Prevent overshooting
-                                        remaining_bytes = bytes_to_send - bytes_sent
-                                        if len(chunk) > remaining_bytes:
-                                            chunk = chunk[:remaining_bytes]
+                                # Prevent overshooting
+                                remaining_bytes = bytes_to_send - bytes_sent
+                                if len(chunk) > remaining_bytes:
+                                    chunk = chunk[:remaining_bytes]
 
-                                        yield chunk
-                                        bytes_sent += len(chunk)
-                                        current_chunk_index += 1
+                                yield chunk
+                                bytes_sent += len(chunk)
+                                current_chunk_index += 1
 
-                                        if bytes_sent >= bytes_to_send:
-                                            break
-
-                                    # success, exit retry loop
+                                if bytes_sent >= bytes_to_send:
                                     break
 
-                                except FloodWait as e:
-                                    logger.warning(f"FloodWait: sleeping for {e.value} seconds")
-                                    await asyncio.sleep(e.value)
-                                    continue
+                            # ✅ Success, exit retry loop
+                            break
 
-                                except (asyncio.TimeoutError, Timeout):
-                                    logger.warning(f"Timeout fetching chunk {current_chunk_index}, retry {attempt}/{MAX_RETRIES}")
-                                    await asyncio.sleep(RETRY_DELAY)
-                                    continue
+                        except FloodWait as e:
+                            # 🔹 NEW: Handle Telegram FloodWaits
+                            logger.warning(f"FloodWait: sleeping for {e.value} seconds")
+                            await asyncio.sleep(e.value)
+                            continue
 
-                                except RPCError as e:
-                                    logger.error(f"RPCError on chunk {current_chunk_index}: {e}")
-                                    if attempt < MAX_RETRIES:
-                                        await asyncio.sleep(RETRY_DELAY)
-                                        continue
-                                    else:
-                                        raise HTTPException(status_code=500, detail=f"Telegram RPC error: {e}")
+                        except (asyncio.TimeoutError, Timeout):
+                            # 🔹 NEW: Handle async timeout gracefully
+                            logger.warning(f"Timeout fetching chunk {current_chunk_index}, retry {attempt}/{MAX_RETRIES}")
+                            await asyncio.sleep(RETRY_DELAY)
+                            continue
 
-                                except Exception as e:
-                                    logger.error(f"Unexpected error: {e}")
-                                    if attempt < MAX_RETRIES:
-                                        await asyncio.sleep(RETRY_DELAY)
-                                        continue
-                                    else:
-                                        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
-                            else:
-                                raise HTTPException(status_code=500, detail="Failed to fetch chunk after multiple retries.")
-                    else:
-                        # Caller already acquired the semaphore: we stream without re-acquiring.
-                        # We still need to hold the permit for the duration of the streaming here.
-                        # Mark that we should release it when done (released flag will ensure it's released).
-                        released = True
-                        for attempt in range(1, MAX_RETRIES + 1):
-                            try:
-                                stream = worker.stream_media(message, offset=current_chunk_index)
-
-                                async for chunk_data in stream:
-                                    # Cache the new chunk
-                                    await cache.put(f"{channel_id}_{message_id}_{current_chunk_index}", chunk_data)
-
-                                    if is_first_chunk:
-                                        chunk = chunk_data[byte_offset_in_chunk:]
-                                        is_first_chunk = False
-                                    else:
-                                        chunk = chunk_data
-
-                                    remaining_bytes = bytes_to_send - bytes_sent
-                                    if len(chunk) > remaining_bytes:
-                                        chunk = chunk[:remaining_bytes]
-
-                                    yield chunk
-                                    bytes_sent += len(chunk)
-                                    current_chunk_index += 1
-
-                                    if bytes_sent >= bytes_to_send:
-                                        break
-
-                                break
-
-                            except FloodWait as e:
-                                logger.warning(f"FloodWait: sleeping for {e.value} seconds")
-                                await asyncio.sleep(e.value)
-                                continue
-
-                            except (asyncio.TimeoutError, Timeout):
-                                logger.warning(f"Timeout fetching chunk {current_chunk_index}, retry {attempt}/{MAX_RETRIES}")
+                        except RPCError as e:
+                            # 🔹 NEW: Handle generic Telegram RPC errors
+                            logger.error(f"RPCError on chunk {current_chunk_index}: {e}")
+                            if attempt < MAX_RETRIES:
                                 await asyncio.sleep(RETRY_DELAY)
                                 continue
+                            else:
+                                raise HTTPException(status_code=500, detail=f"Telegram RPC error: {e}")
 
-                            except RPCError as e:
-                                logger.error(f"RPCError on chunk {current_chunk_index}: {e}")
-                                if attempt < MAX_RETRIES:
-                                    await asyncio.sleep(RETRY_DELAY)
-                                    continue
-                                else:
-                                    raise HTTPException(status_code=500, detail=f"Telegram RPC error: {e}")
+                        except Exception as e:
+                            # 🔹 NEW: Fallback for unexpected exceptions
+                            logger.error(f"Unexpected error: {e}")
+                            if attempt < MAX_RETRIES:
+                                await asyncio.sleep(RETRY_DELAY)
+                                continue
+                            else:
+                                raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
+            else:
+                # Cache hit: Serve the chunk from the cache
+                if is_first_chunk:
+                    chunk = chunk[byte_offset_in_chunk:]
+                    is_first_chunk = False
 
-                            except Exception as e:
-                                logger.error(f"Unexpected error: {e}")
-                                if attempt < MAX_RETRIES:
-                                    await asyncio.sleep(RETRY_DELAY)
-                                    continue
-                                else:
-                                    raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
-                        else:
-                            raise HTTPException(status_code=500, detail="Failed to fetch chunk after multiple retries.")
+                remaining_bytes = bytes_to_send - bytes_sent
+                if len(chunk) > remaining_bytes:
+                    chunk = chunk[:remaining_bytes]
 
-                else:
-                    # Cache hit: Serve the chunk from the cache
-                    if is_first_chunk:
-                        chunk = chunk[byte_offset_in_chunk:]
-                        is_first_chunk = False
-
-                    remaining_bytes = bytes_to_send - bytes_sent
-                    if len(chunk) > remaining_bytes:
-                        chunk = chunk[:remaining_bytes]
-
-                    yield chunk
-                    bytes_sent += len(chunk)
-                    current_chunk_index += 1
-
-        finally:
-            # Release the semaphore if caller had acquired it (we release exactly once).
-            if semaphore_acquired or released:
-                try:
-                    semaphore.release()
-                except Exception:
-                    pass
+                yield chunk
+                bytes_sent += len(chunk)
+                current_chunk_index += 1
 
     return media_streamer, start, end, file_size, file_name
 
@@ -266,27 +188,7 @@ async def get_file_stream(channel_id, message_id, request: Request, semaphore_ac
 @api.head("/stream/{file_link}")
 async def stream_file(file_link: str, request: Request):
     channel_id, message_id = await decode_file_link(file_link)
-
-    # Check if first chunk is cached to decide if we need to acquire a semaphore permit.
-    first_chunk_cached = await cache.get(f"{channel_id}_{message_id}_0") is not None
-
-    # If the first chunk isn't cached, try to acquire a permit immediately (non-blocking).
-    semaphore_acquired = False
-    if not first_chunk_cached:
-        # Quick check for available permits. Use _value here to avoid creating a blocking wait in the request handler.
-        # This is a pragmatic check — we then acquire immediately (should succeed if _value > 0).
-        if getattr(semaphore, "_value", 0) <= 0:
-            # At capacity — respond fast so clients don't stay stuck loading.
-            raise HTTPException(
-                status_code=503,
-                detail="Server is busy, please try again later."
-            )
-        # Acquire one permit for the duration of this request's streaming.
-        # Since _value was > 0, this await will return immediately in normal cases.
-        await semaphore.acquire()
-        semaphore_acquired = True
-
-    media_streamer, start, end, file_size, file_name = await get_file_stream(channel_id, message_id, request, semaphore_acquired=semaphore_acquired)
+    media_streamer, start, end, file_size, file_name = await get_file_stream(channel_id, message_id, request)
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
         mime_type = "video/mp4"
@@ -300,11 +202,10 @@ async def stream_file(file_link: str, request: Request):
     }
     return StreamingResponse(media_streamer(), status_code=206 if start > 0 else 200, headers=headers)
 
-
 '''
 @api.get("/download/{file_link}")
 async def download_file(file_link: str, request: Request):
-    channel_id, message_id = await decode_file_link(file_link)
+    channel_id, message_id = decode_file_link(file_link)
     media_streamer, _, _, file_size, file_name = await get_file_stream(channel_id, message_id, request)
     headers = {
         "Content-Disposition": f"attachment; filename=\"{file_name}\"",
@@ -313,7 +214,6 @@ async def download_file(file_link: str, request: Request):
     }
     return StreamingResponse(media_streamer(), headers=headers)
 '''
-
 
 @api.get("/subtitle/{file_link}")
 async def serve_subtitle(file_link: str, request: Request):
@@ -325,11 +225,9 @@ async def serve_subtitle(file_link: str, request: Request):
     }
     return StreamingResponse(media_streamer(), headers=headers)
 
-
 @api.get("/player/{file_link}")
 async def play_video(file_link: str):
     return FileResponse(f"static/player.html")
-
 
 @api.get("/details/{file_link}")
 async def get_file_details(file_link: str):
@@ -350,7 +248,7 @@ async def get_file_details(file_link: str):
     # Subtitle search logic
     subtitle_url = None
     subtitle_name = f"{file_name}.srt"
-
+    
     subtitle_doc = await files_col.find_one({"file_name": subtitle_name})
     if subtitle_doc:
         bot_instance = Bot("temp_instance")
@@ -363,7 +261,7 @@ async def get_file_details(file_link: str):
         "mime_type": mime_type,
         "subtitle_url": subtitle_url
     })
-
+    
 @api.get("/play/{player}/{file_link}")
 async def play_in_player(player: str, file_link: str):
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
