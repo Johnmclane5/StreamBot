@@ -9,7 +9,7 @@ from urllib.parse import quote
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pyrogram.errors import ChannelInvalid, FloodWait, RPCError
+from pyrogram.errors import ChannelInvalid, FloodWait, RPCError, Timeout
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
@@ -155,7 +155,7 @@ async def get_file_stream(channel_id, message_id, request: Request, semaphore_ac
                                     await asyncio.sleep(e.value)
                                     continue
 
-                                except asyncio.TimeoutError:
+                                except (asyncio.TimeoutError, Timeout):
                                     logger.warning(f"Timeout fetching chunk {current_chunk_index}, retry {attempt}/{MAX_RETRIES}")
                                     await asyncio.sleep(RETRY_DELAY)
                                     continue
@@ -175,6 +175,8 @@ async def get_file_stream(channel_id, message_id, request: Request, semaphore_ac
                                         continue
                                     else:
                                         raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
+                            else:
+                                raise HTTPException(status_code=500, detail="Failed to fetch chunk after multiple retries.")
                     else:
                         # Caller already acquired the semaphore: we stream without re-acquiring.
                         # We still need to hold the permit for the duration of the streaming here.
@@ -212,7 +214,7 @@ async def get_file_stream(channel_id, message_id, request: Request, semaphore_ac
                                 await asyncio.sleep(e.value)
                                 continue
 
-                            except asyncio.TimeoutError:
+                            except (asyncio.TimeoutError, Timeout):
                                 logger.warning(f"Timeout fetching chunk {current_chunk_index}, retry {attempt}/{MAX_RETRIES}")
                                 await asyncio.sleep(RETRY_DELAY)
                                 continue
@@ -232,6 +234,8 @@ async def get_file_stream(channel_id, message_id, request: Request, semaphore_ac
                                     continue
                                 else:
                                     raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
+                        else:
+                            raise HTTPException(status_code=500, detail="Failed to fetch chunk after multiple retries.")
 
                 else:
                     # Cache hit: Serve the chunk from the cache

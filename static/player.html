@@ -44,6 +44,37 @@
 
         .artplayer-app { width: 100%; height: 100%; }
 
+        #queue-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 1rem;
+            z-index: 10;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden { display: none; }
+
         .loading {
             position: absolute;
             top: 50%; left: 50%;
@@ -125,6 +156,10 @@
                 <div class="artplayer-app">
                     <div class="loading" id="loading">Loading video...</div>
                 </div>
+                <div id="queue-overlay" class="hidden">
+                    <div class="spinner"></div>
+                    <p>The server is busy, your stream is in a queue. Please wait, we will retry shortly.</p>
+                </div>
             </div>
         </div>
 
@@ -186,6 +221,7 @@
         const streamUrl = `/stream/${encoded}`;
         const loadingEl = document.getElementById('loading');
         const fileNameEl = document.getElementById('file-name');
+        const queueOverlay = document.getElementById('queue-overlay');
 
         // make breakable filename (zero-width after dots)
         function makeBreakableName(name) {
@@ -266,6 +302,29 @@
                 window.addEventListener('beforeunload', async () => await releaseWakeLock());
             } catch (e) { /* ignore */ }
         };
+
+        async function checkStreamAndPlay(details) {
+            try {
+                const res = await fetch(streamUrl, { method: 'HEAD' });
+                if (res.status === 503) {
+                    // Server is busy, show queue message and retry after 30 seconds
+                    queueOverlay.classList.remove('hidden');
+                    loadingEl.style.display = 'none';
+                    setTimeout(() => checkStreamAndPlay(details), 30000);
+                } else if (res.ok) {
+                    // Stream is available, hide queue and start player
+                    queueOverlay.classList.add('hidden');
+                    await initPlayer(details);
+                } else {
+                    // Handle other errors
+                    console.error('Stream check failed with status:', res.status);
+                    loadingEl.innerText = `Error: Could not load video (${res.status})`;
+                }
+            } catch (err) {
+                console.error('Error checking stream:', err);
+                loadingEl.innerText = 'Error: Could not connect to the server.';
+            }
+        }
 
         async function initPlayer(details) {
             loadingEl.style.display = 'none';
@@ -363,14 +422,14 @@
 
             document.getElementById('file-size').innerText = data.file_size || '';
 
-            await initPlayer(data);
+            await checkStreamAndPlay(data);
         } catch (err) {
-            // fallback
+            console.error('Failed to get file details:', err);
             const fallback = makeBreakableName(rawFile);
             fileNameEl.innerText = fallback;
             fileNameEl.title = rawFile;
-
-            await initPlayer({});
+            loadingEl.innerText = 'Error: Could not load file details.';
+            loadingEl.style.display = 'block';
         }
     })();
     </script>
