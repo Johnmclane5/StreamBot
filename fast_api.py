@@ -25,9 +25,6 @@ api.add_middleware(
     allow_headers=["*"],
 )
 
-CONCURRENCY_LIMIT = 4
-semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
-
 MAX_RETRIES = 3       
 RETRY_DELAY = 3     
 
@@ -68,20 +65,6 @@ async def get_file_properties(message):
 @api.get("/")
 async def root():
     return JSONResponse({"message": "👋 Hola Amigo!"})
-
-
-async def is_download_required(channel_id: int, message_id: int, request: Request) -> bool:
-    """Check if the requested file range is already in cache."""
-    range_header = request.headers.get("range")
-    start = 0
-    if range_header:
-        range_value = range_header.strip().split("=")[1]
-        start_str = range_value.split("-")[0]
-        start = int(start_str)
-
-    chunk_offset = start // CHUNK_SIZE
-    cache_key = f"{channel_id}_{message_id}_{chunk_offset}"
-    return await cache.get(cache_key) is None
 
 
 async def get_file_stream(channel_id, message_id, request: Request):
@@ -202,29 +185,8 @@ async def get_file_stream(channel_id, message_id, request: Request):
 async def stream_file(file_link: str, request: Request):
     channel_id, message_id = await decode_file_link(file_link)
 
-    # 🔹 NEW: Only apply semaphore if a download is actually required
-    download_needed = await is_download_required(channel_id, message_id, request)
-    acquired_semaphore = False
-
-    if download_needed:
-        try:
-            await asyncio.wait_for(semaphore.acquire(), timeout=0.01)
-            acquired_semaphore = True
-        except asyncio.TimeoutError:
-            raise HTTPException(status_code=503, detail="Server is busy, please try again later.")
-
-    async def release_semaphore_generator(streamer):
-        try:
-            async for chunk in streamer:
-                yield chunk
-        finally:
-            if acquired_semaphore:
-                semaphore.release()
-
     # If it's a HEAD request, we can release early without getting the full stream
     if request.method == "HEAD":
-        if acquired_semaphore:
-            semaphore.release()
         # Fetch file properties for HEAD response
         worker = get_worker_bot()
         try:
@@ -247,11 +209,8 @@ async def stream_file(file_link: str, request: Request):
         "Content-Range": f"bytes {start}-{end}/{file_size}",
         "Content-Disposition": f'attachment; filename="{file_name}"'
     }
-
-    # Wrap the streamer to ensure semaphore release
-    response_generator = release_semaphore_generator(media_streamer())
     
-    return StreamingResponse(response_generator, status_code=206 if start > 0 else 200, headers=headers)
+    return StreamingResponse(media_streamer(), status_code=206 if start > 0 else 200, headers=headers)
 
 '''
 @api.get("/download/{file_link}")
