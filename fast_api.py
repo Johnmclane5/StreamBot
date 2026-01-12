@@ -6,7 +6,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pyrogram.errors import ChannelInvalid, FloodWait, RPCError
+from pyrogram.errors import ChannelInvalid, FloodWait, RPCError, AuthBytesInvalid
 from pyrogram.errors.exceptions.internal_server_error_500 import Timeout
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
@@ -81,7 +81,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
             message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
             if message:
                 break 
-        except (FloodWait, Timeout, RPCError):
+        except (FloodWait, Timeout, RPCError, AuthBytesInvalid):
             worker_manager.release_worker(worker.id)
             worker_manager.put_worker_on_cooldown(worker.id)
             continue
@@ -154,7 +154,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
                             # ✅ Success, exit retry loop
                             break
 
-                        except (FloodWait, Timeout, RPCError) as e:
+                        except (FloodWait, Timeout, RPCError, AuthBytesInvalid) as e:
                             logger.warning(f"Worker {worker.id} failed with {e.__class__.__name__}. Putting on cooldown.")
                             worker_manager.release_worker(worker.id)
                             worker_manager.put_worker_on_cooldown(worker.id)
@@ -290,7 +290,7 @@ async def get_file_details(file_link: str):
             message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
             if message:
                 break
-        except (FloodWait, Timeout, RPCError):
+        except (FloodWait, Timeout, RPCError, AuthBytesInvalid):
             worker_manager.release_worker(worker.id)
             worker_manager.put_worker_on_cooldown(worker.id)
             continue
