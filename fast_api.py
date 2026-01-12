@@ -11,7 +11,7 @@ from pyrogram.errors.exceptions.internal_server_error_500 import Timeout
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
-from app import get_worker_bot, cache, Bot
+from app import get_worker_manager, cache, Bot
 from config import MY_DOMAIN, CHUNK_SIZE
 from db import files_col
 
@@ -68,13 +68,34 @@ async def root():
 
 
 async def get_file_stream(channel_id, message_id, request: Request):
-    worker = get_worker_bot()
-    try:
-        message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
-    except ChannelInvalid:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
+    worker_manager = get_worker_manager()
+    message = None
+    worker = None
+
+    for _ in range(MAX_RETRIES):
+        worker = worker_manager.get_worker()
+        if not worker:
+            raise HTTPException(status_code=503, detail="All workers are busy. Please try again later.")
+
+        try:
+            message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
+            if message:
+                break 
+        except (FloodWait, Timeout, RPCError):
+            worker_manager.release_worker(worker.id)
+            worker_manager.put_worker_on_cooldown(worker.id)
+            continue
+        except ChannelInvalid:
+            worker_manager.release_worker(worker.id)
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
+    else:
+        # If loop finishes without success
+        if worker:
+            worker_manager.release_worker(worker.id)
+        raise HTTPException(status_code=500, detail="All workers failed to fetch message.")
 
     if not message:
+        worker_manager.release_worker(worker.id)
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
     file_name, file_size = await get_file_properties(message)
@@ -97,85 +118,76 @@ async def get_file_stream(channel_id, message_id, request: Request):
         current_chunk_index = chunk_offset
         is_first_chunk = True
 
-        while bytes_sent < bytes_to_send:
-            cache_key = f"{channel_id}_{message_id}_{current_chunk_index}"
-            chunk = await cache.get(cache_key)
+        try:
+            while bytes_sent < bytes_to_send:
+                cache_key = f"{channel_id}_{message_id}_{current_chunk_index}"
+                chunk = await cache.get(cache_key)
 
-            if chunk is None:
-                # Cache miss: Start streaming from the worker
-                # 🔹 NEW: Add retry mechanism for Telegram timeout or RPC errors
-                for attempt in range(1, MAX_RETRIES + 1):
-                    try:
-                        stream = worker.stream_media(message, offset=current_chunk_index)
+                if chunk is None:
+                    # Cache miss: Start streaming from the worker
+                    nonlocal worker
+                    for attempt in range(1, MAX_RETRIES + 1):
+                        try:
+                            stream = worker.stream_media(message, offset=current_chunk_index)
+                            async for chunk_data in stream:
+                                await cache.put(f"{channel_id}_{message_id}_{current_chunk_index}", chunk_data)
 
-                        async for chunk_data in stream:
-                            # Cache the new chunk
-                            await cache.put(f"{channel_id}_{message_id}_{current_chunk_index}", chunk_data)
+                                # Handle byte offset on the very first chunk
+                                if is_first_chunk:
+                                    chunk = chunk_data[byte_offset_in_chunk:]
+                                    is_first_chunk = False
+                                else:
+                                    chunk = chunk_data
 
-                            # Handle byte offset on the very first chunk
-                            if is_first_chunk:
-                                chunk = chunk_data[byte_offset_in_chunk:]
-                                is_first_chunk = False
-                            else:
-                                chunk = chunk_data
+                                # Prevent overshooting
+                                remaining_bytes = bytes_to_send - bytes_sent
+                                if len(chunk) > remaining_bytes:
+                                    chunk = chunk[:remaining_bytes]
 
-                            # Prevent overshooting
-                            remaining_bytes = bytes_to_send - bytes_sent
-                            if len(chunk) > remaining_bytes:
-                                chunk = chunk[:remaining_bytes]
+                                yield chunk
+                                bytes_sent += len(chunk)
+                                current_chunk_index += 1
 
-                            yield chunk
-                            bytes_sent += len(chunk)
-                            current_chunk_index += 1
+                                if bytes_sent >= bytes_to_send:
+                                    break
 
-                            if bytes_sent >= bytes_to_send:
-                                break
+                            # ✅ Success, exit retry loop
+                            break
 
-                        # ✅ Success, exit retry loop
-                        break
-
-                    except FloodWait as e:
-                        # 🔹 NEW: Handle Telegram FloodWaits
-                        logger.warning(f"FloodWait: sleeping for {e.value} seconds")
-                        await asyncio.sleep(e.value)
-                        continue
-
-                    except (asyncio.TimeoutError, Timeout):
-                        # 🔹 NEW: Handle async timeout gracefully
-                        logger.warning(f"Timeout fetching chunk {current_chunk_index}, retry {attempt}/{MAX_RETRIES}")
-                        await asyncio.sleep(RETRY_DELAY)
-                        continue
-
-                    except RPCError as e:
-                        # 🔹 NEW: Handle generic Telegram RPC errors
-                        logger.error(f"RPCError on chunk {current_chunk_index}: {e}")
-                        if attempt < MAX_RETRIES:
-                            await asyncio.sleep(RETRY_DELAY)
+                        except (FloodWait, Timeout, RPCError) as e:
+                            logger.warning(f"Worker {worker.id} failed with {e.__class__.__name__}. Putting on cooldown.")
+                            worker_manager.release_worker(worker.id)
+                            worker_manager.put_worker_on_cooldown(worker.id)
+                            
+                            # Try to get a new worker
+                            new_worker = worker_manager.get_worker()
+                            if not new_worker:
+                                raise HTTPException(status_code=503, detail="All workers are busy or down.")
+                            
+                            worker = new_worker
+                            logger.info(f"Switched to new worker {worker.id}")
                             continue
-                        else:
-                            raise HTTPException(status_code=500, detail=f"Telegram RPC error: {e}")
 
-                    except Exception as e:
-                        # 🔹 NEW: Fallback for unexpected exceptions
-                        logger.error(f"Unexpected error: {e}")
-                        if attempt < MAX_RETRIES:
-                            await asyncio.sleep(RETRY_DELAY)
-                            continue
-                        else:
-                            raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
-            else:
-                # Cache hit: Serve the chunk from the cache
-                if is_first_chunk:
-                    chunk = chunk[byte_offset_in_chunk:]
-                    is_first_chunk = False
+                        except Exception as e:
+                            logger.error(f"Unexpected error with worker {worker.id}: {e}", exc_info=True)
+                            worker_manager.put_worker_on_cooldown(worker.id)
+                            raise HTTPException(status_code=500, detail="Unexpected error during streaming.")
+                else:
+                    # Cache hit: Serve the chunk from the cache
+                    if is_first_chunk:
+                        chunk = chunk[byte_offset_in_chunk:]
+                        is_first_chunk = False
 
-                remaining_bytes = bytes_to_send - bytes_sent
-                if len(chunk) > remaining_bytes:
-                    chunk = chunk[:remaining_bytes]
+                    remaining_bytes = bytes_to_send - bytes_sent
+                    if len(chunk) > remaining_bytes:
+                        chunk = chunk[:remaining_bytes]
 
-                yield chunk
-                bytes_sent += len(chunk)
-                current_chunk_index += 1
+                    yield chunk
+                    bytes_sent += len(chunk)
+                    current_chunk_index += 1
+        finally:
+            worker_manager.release_worker(worker.id)
+
 
     return media_streamer, start, end, file_size, file_name
 
@@ -187,14 +199,37 @@ async def stream_file(file_link: str, request: Request):
 
     # If it's a HEAD request, we can release early without getting the full stream
     if request.method == "HEAD":
-        # Fetch file properties for HEAD response
-        worker = get_worker_bot()
-        try:
-            message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
-            _, file_size = await get_file_properties(message)
-            return Response(status_code=200, headers={"Content-Length": str(file_size), "Accept-Ranges": "bytes"})
-        except Exception:
-            raise HTTPException(status_code=404, detail="File not found")
+        worker_manager = get_worker_manager()
+        message = None
+        worker = None
+        for _ in range(MAX_RETRIES):
+            worker = worker_manager.get_worker()
+            if not worker:
+                raise HTTPException(status_code=503, detail="All workers are busy.")
+            try:
+                message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
+                if message:
+                    break
+            except (FloodWait, Timeout, RPCError):
+                worker_manager.release_worker(worker.id)
+                worker_manager.put_worker_on_cooldown(worker.id)
+                continue
+            except ChannelInvalid:
+                worker_manager.release_worker(worker.id)
+                raise HTTPException(status_code=404, detail="Channel not found")
+            except Exception as e:
+                worker_manager.release_worker(worker.id)
+                worker_manager.put_worker_on_cooldown(worker.id)
+                raise HTTPException(status_code=500, detail=f"Worker error: {e}")
+        
+        if not message:
+            if worker:
+                worker_manager.release_worker(worker.id)
+            raise HTTPException(status_code=404, detail="File not found after retries.")
+
+        _, file_size = await get_file_properties(message)
+        worker_manager.release_worker(worker.id)
+        return Response(status_code=200, headers={"Content-Length": str(file_size), "Accept-Ranges": "bytes"})
 
     media_streamer, start, end, file_size, file_name = await get_file_stream(channel_id, message_id, request)
 
@@ -242,13 +277,37 @@ async def play_video(file_link: str):
 @api.get("/details/{file_link}")
 async def get_file_details(file_link: str):
     channel_id, message_id = await decode_file_link(file_link)
-    worker = get_worker_bot()
-    try:
-        message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
-    except ChannelInvalid:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
+    worker_manager = get_worker_manager()
+    message = None
+    worker = None
+
+    for _ in range(MAX_RETRIES):
+        worker = worker_manager.get_worker()
+        if not worker:
+            raise HTTPException(status_code=503, detail="All workers are busy.")
+
+        try:
+            message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
+            if message:
+                break
+        except (FloodWait, Timeout, RPCError):
+            worker_manager.release_worker(worker.id)
+            worker_manager.put_worker_on_cooldown(worker.id)
+            continue
+        except ChannelInvalid:
+            worker_manager.release_worker(worker.id)
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
+        except Exception as e:
+            worker_manager.release_worker(worker.id)
+            worker_manager.put_worker_on_cooldown(worker.id)
+            raise HTTPException(status_code=500, detail=f"Worker error: {e}")
+
     if not message:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
+        if worker:
+            worker_manager.release_worker(worker.id)
+        raise HTTPException(status_code=404, detail="File not found after retries.")
+    
+    worker_manager.release_worker(worker.id)
 
     file_name, file_size = await get_file_properties(message)
     mime_type, _ = mimetypes.guess_type(file_name)
