@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>File Details</title>
+    
+    <!-- Preload Player Scripts -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js" as="script">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js" as="script">
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
@@ -306,12 +310,15 @@
             } catch (e) { /* ignore */ }
         };
 
-        async function initPlayer(details) {
-            loadingEl.style.display = 'none';
-
-            // load Artplayer + NoSleep
+        
+        // Asynchronously load player scripts
+        async function loadPlayerScripts() {
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js');
+        }
+
+        async function initPlayer(details) {
+            loadingEl.style.display = 'none';
 
             if (typeof NoSleep !== 'undefined') {
                 try { noSleep = new NoSleep(); } catch (e) { /* ignore */ }
@@ -430,30 +437,34 @@
         }
 
         async function fetchDetailsAndInitPlayer() {
-            try {
-                const res = await fetch(`/details/${encoded}`);
-                if (!res.ok) throw new Error('details fetch failed');
-                const data = await res.json();
+            // Start loading scripts and fetching details in parallel
+            const [_, details] = await Promise.all([
+                loadPlayerScripts(),
+                fetch(`/details/${encoded}`).then(res => res.ok ? res.json() : Promise.reject('details fetch failed'))
+            ]).catch(err => {
+                console.warn('Either script loading or details fetch failed:', err);
+                // Fallback: try to proceed with just scripts loaded if details failed
+                return [true, null]; 
+            });
 
-                // filename: make breakable & keep title as original
-                const originalName = data.file_name || rawFile;
+            if (details) {
+                // Details fetched successfully
+                const originalName = details.file_name || rawFile;
                 const breakable = makeBreakableName(originalName);
                 fileNameEl.innerText = breakable;
                 fileNameEl.title = originalName;
-
-                document.getElementById('file-size').innerText = data.file_size || '';
-
-                await initPlayer(data);
-            } catch (err) {
-                // fallback
+                document.getElementById('file-size').innerText = details.file_size || '';
+                await initPlayer(details);
+            } else {
+                // Fallback when details are not available
                 const fallback = makeBreakableName(rawFile);
                 fileNameEl.innerText = fallback;
                 fileNameEl.title = rawFile;
                 await initPlayer({});
             }
         }
-
-        await checkStreamAndInit();
+        
+        checkStreamAndInit();
     })();
     </script>
 </body>
