@@ -5,12 +5,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>File Details</title>
     
-    <!-- Preload Player Scripts -->
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js" as="script">
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js" as="script">
-
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
     <style>
         /* Always Dark Mode */
@@ -27,64 +24,6 @@
             margin: 0 auto;
             padding: 1.5rem 1rem;
             text-align: center;
-        }
-
-        /* Player */
-        .player-box {
-            width: 100%;
-            background: #000;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            border-radius: 10px;
-        }
-
-        .player-aspect {
-            width: 100%;
-            aspect-ratio: 16/9;
-            position: relative;
-            max-width: 100%;
-        }
-
-        .artplayer-app { width: 100%; height: 100%; }
-
-        .loading {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-        }
-
-        /* 🔹 NEW: Queue Overlay */
-        .queue-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 1rem;
-            z-index: 10;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-            margin-bottom: 1rem;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
         }
 
         /* Info */
@@ -106,129 +45,84 @@
 
         #file-size { margin-top: .3rem; color: #aaa; }
 
-        .recommend-note {
-            margin-top: .7rem;
-            font-size: .9rem;
-            color: #4dd0e1;
-            text-decoration: underline;
-            cursor: pointer;
-            margin-bottom: 0;
+        .actions-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
         }
 
-        .platform-box {
-            background: #0d0d0d;
-            border: 1px solid #222;
-            padding: .9rem;
-            border-radius: .35rem;
-            margin-top: 1rem;
-            text-align: left;
+        .btn-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            min-width: 100px;
+            background-color: #222;
+            border: 1px solid #444;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            color: #f1f1f1;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-icon:hover {
+            background-color: #333;
+            color: #fff;
+            text-decoration: none;
         }
 
-        .platform-box h5 { font-weight: 600; margin-bottom: .6rem; color: #e0e0e0; }
-
-        .button-group {
-            display:flex;
-            flex-wrap:wrap;
-            gap:.5rem;
-            margin-bottom:.7rem;
-            justify-content: flex-start;
+        .btn-icon i {
+            font-size: 1.75rem;
         }
-
-        .btn-info { background-color: #0565ff; border-color:#0565ff; color: #fff; }
-        .btn-secondary { background-color:#333; border-color:#555; color:#fff; }
 
         @media (max-width: 576px) {
             .wrapper { padding: 1rem .6rem; }
-        }
-        
-        /* Keep subtitles visible even when controls are hidden */
-        .art-subtitle {
-            bottom: 50px !important;
-            opacity: 1 !important;
-            display: block !important;
-            visibility: visible !important;
-            pointer-events: none !important;
-            transition: none !important;
         }
     </style>
 </head>
 <body>
     <div class="wrapper">
 
-        <!-- Player -->
-        <div class="player-box">
-            <div class="player-aspect">
-                <div class="artplayer-app">
-                    <div class="loading" id="loading">Loading video...</div>
-                </div>
-                <!-- 🔹 NEW: Queue Overlay -->
-                <div class="queue-overlay" id="queue-overlay" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>You're in a queue. We'll start your stream shortly...</p>
-                    <p><small>Retrying automatically...</small></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Info -->
         <div class="info-container">
             <h3 id="file-name" title=""></h3>
             <p id="file-size"></p>
-
-            💡 For Subtitle and Dual Audio Support, use a dedicated player like MX Player or VLC.
-            <p class="recommend-note" data-toggle="collapse" data-target="#playerOptions">Tap to know more</p>
-
-            <div id="playerOptions" class="collapse">
-
-                <!-- Android -->
-                <div class="platform-box">
-                    <h5>For Android</h5>
-                    <div class="button-group">
-                        <a id="mx-player-btn" class="btn btn-info" href="#" target="_blank">MX Player</a>
-                        <a id="mx-pro-btn" class="btn btn-info" href="#" target="_blank">MX Player Pro</a>
-                        <a id="vlc-btn" class="btn btn-info" href="#" target="_blank">VLC</a>
-                    </div>
-                </div>
-
-                <!-- iOS / PC -->
-                <div class="platform-box">
-                    <h5>For iOS / Windows / Linux</h5>
-
-                    <div class="button-group">
-                        <a class="btn btn-info" href="https://www.videolan.org/vlc/#download" target="_blank">Download VLC</a>
-                    </div>
-
-                    <div class="button-group">
-                        <button id="copy-stream-link-btn" class="btn btn-secondary">Copy Stream Link</button>
-                    </div>
-
-                    <ol>
-                        <li>Copy the stream link.</li>
-                        <li>Open VLC.</li>
-                        <li>Select "Open Network Stream".</li>
-                        <li>Paste & play.</li>
-                    </ol>
-                </div>
-
+            
+            <div class="actions-container">
+                <a id="download-btn" class="btn-icon" href="#" target="_blank">
+                    <i class="bi bi-download"></i>
+                    <span>Download</span>
+                </a>
+                <button id="copy-stream-link-btn" class="btn-icon">
+                    <i class="bi bi-clipboard"></i>
+                    <span>Copy Link</span>
+                </button>
+                <a id="vlc-btn" class="btn-icon" href="#" target="_blank">
+                    <i class="bi bi-cone-striped"></i>
+                    <span>VLC</span>
+                </a>
+                <a id="mx-player-btn" class="btn-icon" href="#" target="_blank">
+                    <i class="bi bi-play-circle"></i>
+                    <span>MX Player</span>
+                </a>
+                <a id="mx-pro-btn" class="btn-icon" href="#" target="_blank">
+                    <i class="bi bi-play-circle-fill"></i>
+                    <span>MX Player Pro</span>
+                </a>
             </div>
         </div>
 
     </div>
-
-    <!-- Bootstrap JS (needed for collapse) -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     <!-- Player + subtitle + wake-lock + nosleep + resume -->
     <script>
     (async () => {
         const rawFile = window.location.pathname.split('/').pop() || '';
         const encoded = encodeURIComponent(rawFile);
-        const streamUrl = `/stream/${encoded}`;
-        const loadingEl = document.getElementById('loading');
         const fileNameEl = document.getElementById('file-name');
-        const queueOverlay = document.getElementById('queue-overlay');
 
         // make breakable filename (zero-width after dots)
         function makeBreakableName(name) {
@@ -236,235 +130,53 @@
             return name.replace(/\./g, '.\u200B');
         }
 
-        function setButtonLinks() {
-            const full = `${location.origin}/stream/${encoded}`;
-            const mx = document.getElementById('mx-player-btn');
-            const mxp = document.getElementById('mx-pro-btn');
-            const vlc = document.getElementById('vlc-btn');
+        function setupButtonActions() {
+            const streamUrl = `${location.origin}/stream/${encoded}`;
+            
+            // Direct links
+            document.getElementById('download-btn').href = streamUrl;
+            document.getElementById('mx-player-btn').href = `/play/mx/${encoded}`;
+            document.getElementById('mx-pro-btn').href = `/play/mxpro/${encoded}`;
+            document.getElementById('vlc-btn').href = `/play/vlc/${encoded}`;
 
-            if (mx) mx.href = `/play/mx/${encoded}`;
-            if (mxp) mxp.href = `/play/mxpro/${encoded}`;
-            if (vlc) vlc.href = `/play/vlc/${encoded}`;
-
+            // Clipboard
             const copyBtn = document.getElementById('copy-stream-link-btn');
-            if (copyBtn) {
-                copyBtn.onclick = () => {
-                    navigator.clipboard.writeText(full).then(() => {
-                        const prev = copyBtn.innerText;
-                        copyBtn.innerText = 'Copied!';
-                        setTimeout(() => (copyBtn.innerText = prev), 2000);
-                    }).catch(() => {
-                        alert('Could not copy automatically. URL: ' + full);
-                    });
-                };
-            }
-        }
-
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = src;
-                s.async = true;
-                s.onload = resolve;
-                s.onerror = reject;
-                document.head.appendChild(s);
-            });
-        }
-
-        // WakeLock / NoSleep
-        let wakeLock = null;
-        let noSleep = null;
-        const requestWakeLock = async () => {
-            if ('wakeLock' in navigator) {
-                try {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    wakeLock.addEventListener('release', () => (wakeLock = null));
-                } catch (err) { console.warn('WakeLock request failed:', err); }
-            } else if (noSleep) {
-                try { noSleep.enable(); } catch (e) { console.warn('NoSleep enable failed:', e); }
-            }
-        };
-        const releaseWakeLock = async () => {
-            if (wakeLock) {
-                try { await wakeLock.release(); } catch {}
-                wakeLock = null;
-            }
-            if (noSleep) {
-                try { noSleep.disable(); } catch {}
-            }
-        };
-        const attachWakeLockHandlers = (player) => {
-            try {
-                player.on('play', async () => await requestWakeLock());
-                player.on('pause', async () => await releaseWakeLock());
-                document.addEventListener('visibilitychange', async () => {
-                    const videoEl = document.querySelector('.artplayer-app video');
-                    const isPlaying = videoEl && !videoEl.paused && !videoEl.ended;
-                    if (document.visibilityState === 'visible' && isPlaying && !wakeLock) {
-                        await requestWakeLock();
-                    } else {
-                        await releaseWakeLock();
-                    }
+            const copyBtnText = copyBtn.querySelector('span');
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(streamUrl).then(() => {
+                    const originalText = copyBtnText.innerText;
+                    copyBtnText.innerText = 'Copied!';
+                    setTimeout(() => {
+                        copyBtnText.innerText = originalText;
+                    }, 2000);
+                }).catch(() => {
+                    alert('Could not copy automatically. Please copy this URL: ' + streamUrl);
                 });
-                window.addEventListener('beforeunload', async () => await releaseWakeLock());
-            } catch (e) { /* ignore */ }
-        };
-
-        
-        // Asynchronously load player scripts
-        async function loadPlayerScripts() {
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/artplayer/5.1.1/artplayer.js');
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js');
+            };
         }
 
-        async function initPlayer(details) {
-            loadingEl.style.display = 'none';
-
-            if (typeof NoSleep !== 'undefined') {
-                try { noSleep = new NoSleep(); } catch (e) { /* ignore */ }
-            }
-
-            // build options
-            const options = {
-                container: '.artplayer-app',
-                url: streamUrl,
-                title: details.file_name || decodeURIComponent(rawFile),
-                autoplay: false,
-                autoSize: true,
-                autoOrientation: true,
-                playsInline: true,
-                fullscreen: true,
-                fastForward: true,
-                subtitle: {}
-            };
-
-            // If backend provides subtitle_url, set subtitle config
-            if (details.subtitle_url) {
-                options.subtitle = {
-                    url: details.subtitle_url,
-                    type: details.subtitle_type || 'srt',
-                    encoding: details.subtitle_encoding || 'utf-8',
-                    default: true,
-                    escape: false,
-                };
-            }
-            
-            const player = new Artplayer(options);
-
-            // 🔹 NEW: Handle race conditions by catching player errors
-            player.on('error', (error, reconnect) => {
-                console.warn('Artplayer error:', error);
-                
-                // If the error is due to a 503, show the queue and retry
-                if (player.video.error && player.video.error.code === 2) { // MEDIA_ERR_NETWORK
-                    player.destroy(); 
-                    checkStreamAndInit();
-                }
-            });
-
-            // attach wake lock behavior
-            attachWakeLockHandlers(player);
-
-            // resume playback support
-            const resumeKey = `resumeTime_${encoded}`;
-            const saved = parseFloat(localStorage.getItem(resumeKey) || '0');
-
-            player.on('video:loadedmetadata', () => {
-                try {
-                    if (saved > 0 && saved < player.duration - 3) {
-                        player.currentTime = saved;
-                    }
-                } catch (e) { /* ignore */ }
-            });
-
-            const saveTime = () => {
-                try {
-                    if (player.currentTime > 0 && !player.video.ended) {
-                        localStorage.setItem(resumeKey, player.currentTime);
-                    }
-                } catch (e) {
-                    console.warn('Failed to save playback time:', e);
-                }
-            };
-
-            // Save progress on page hide or when visibility changes
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'hidden') {
-                    saveTime();
-                }
-            });
-            window.addEventListener('pagehide', saveTime);
-
-
-            player.on('ended', () => {
-                localStorage.removeItem(resumeKey);
-            });
-            
-            // Fallback to periodic saving
-            const saveInterval = setInterval(saveTime, 5000);
-            player.on('destroy', () => clearInterval(saveInterval));
-        }
-
-        setButtonLinks();
-
-        // 🔹 NEW: Check stream availability and handle queue
-        async function checkStreamAndInit() {
+        async function fetchDetails() {
             try {
-                const res = await fetch(streamUrl, { method: 'HEAD' });
+                const res = await fetch(`/details/${encoded}`);
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const details = await res.json();
 
-                if (res.status === 503) {
-                    // Server is busy, show queue and retry
-                    loadingEl.style.display = 'none';
-                    queueOverlay.style.display = 'flex';
-                    setTimeout(checkStreamAndInit, 30000); // Retry after 30s
-                    return;
-                }
-
-                if (!res.ok) {
-                    // Handle other errors if necessary, for now, just log and proceed
-                    console.warn(`Stream check failed with status: ${res.status}`);
-                }
-
-                // If check is successful, hide queue and proceed to fetch details
-                queueOverlay.style.display = 'none';
-                await fetchDetailsAndInitPlayer();
-
-            } catch (error) {
-                console.error('Error checking stream, retrying...', error);
-                loadingEl.innerText = 'Error connecting. Retrying...';
-                setTimeout(checkStreamAndInit, 10000); // Retry on network error
-            }
-        }
-
-        async function fetchDetailsAndInitPlayer() {
-            // Start loading scripts and fetching details in parallel
-            const [_, details] = await Promise.all([
-                loadPlayerScripts(),
-                fetch(`/details/${encoded}`).then(res => res.ok ? res.json() : Promise.reject('details fetch failed'))
-            ]).catch(err => {
-                console.warn('Either script loading or details fetch failed:', err);
-                // Fallback: try to proceed with just scripts loaded if details failed
-                return [true, null]; 
-            });
-
-            if (details) {
-                // Details fetched successfully
                 const originalName = details.file_name || rawFile;
-                const breakable = makeBreakableName(originalName);
-                fileNameEl.innerText = breakable;
+                const breakableName = makeBreakableName(originalName);
+                fileNameEl.innerText = breakableName;
                 fileNameEl.title = originalName;
                 document.getElementById('file-size').innerText = details.file_size || '';
-                await initPlayer(details);
-            } else {
-                // Fallback when details are not available
-                const fallback = makeBreakableName(rawFile);
-                fileNameEl.innerText = fallback;
+            } catch (error) {
+                console.error("Failed to fetch file details:", error);
+                const fallbackName = makeBreakableName(rawFile);
+                fileNameEl.innerText = fallbackName;
                 fileNameEl.title = rawFile;
-                await initPlayer({});
+                document.getElementById('file-size').innerText = 'Unknown size';
             }
         }
-        
-        checkStreamAndInit();
+
+        setupButtonActions();
+        fetchDetails();
     })();
     </script>
 </body>
