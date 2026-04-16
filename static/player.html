@@ -26,6 +26,31 @@
             text-align: center;
         }
 
+        .video-container {
+            width: 100%;
+            background: #000;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border: 1px solid #222;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        video {
+            width: 100%;
+            max-height: 80vh;
+            display: block;
+            background: #000;
+        }
+
+        .player-actions {
+            padding: 0.75rem;
+            background: #0a0a0a;
+            border-top: 1px solid #222;
+            display: flex;
+            justify-content: center;
+        }
+
         /* Info */
         .info-container {
             margin-top: 1.2rem;
@@ -45,11 +70,18 @@
 
         #file-size { margin-top: .3rem; color: #aaa; }
 
+        .hint-text {
+            margin-top: 2rem;
+            color: #ffc107;
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
         .actions-container {
             display: flex;
             justify-content: center;
             gap: 1rem;
-            margin-top: 1.5rem;
+            margin-top: 1rem;
             flex-wrap: wrap;
         }
 
@@ -81,25 +113,31 @@
 
         @media (max-width: 576px) {
             .wrapper { padding: 1rem .6rem; }
+            .btn-icon { min-width: 80px; padding: 0.5rem; font-size: 0.8rem; }
         }
     </style>
 </head>
 <body>
     <div class="wrapper">
 
+        <div class="video-container">
+            <video id="video-player" controls playsinline crossorigin="anonymous">
+                <p>Your browser doesn't support HTML5 video.</p>
+            </video>
+            <div class="player-actions">
+                <button id="fullscreen-btn" class="btn btn-primary btn-sm">
+                    <i class="bi bi-arrows-fullscreen mr-1"></i> Fullscreen & Landscape
+                </button>
+            </div>
+        </div>
+
         <div class="info-container">
             <h3 id="file-name" title=""></h3>
             <p id="file-size"></p>
             
+            <p class="hint-text">no sound or subtitle in video ? try this below players</p>
+
             <div class="actions-container">
-                <a id="download-btn" class="btn-icon" href="#" target="_blank">
-                    <i class="bi bi-download"></i>
-                    <span>Download</span>
-                </a>
-                <button id="copy-stream-link-btn" class="btn-icon">
-                    <i class="bi bi-clipboard"></i>
-                    <span>Copy Link</span>
-                </button>
                 <a id="vlc-btn" class="btn-icon" href="#" target="_blank">
                     <i class="bi bi-cone-striped"></i>
                     <span>VLC</span>
@@ -117,12 +155,19 @@
 
     </div>
 
-    <!-- Player + subtitle + wake-lock + nosleep + resume -->
     <script>
     (async () => {
         const rawFile = window.location.pathname.split('/').pop() || '';
         const encoded = encodeURIComponent(rawFile);
+        
+        const video = document.getElementById('video-player');
         const fileNameEl = document.getElementById('file-name');
+        const fsBtn = document.getElementById('fullscreen-btn');
+        
+        const streamUrl = `${location.origin}/stream/${encoded}`;
+        const storageKey = `resume_pos_${rawFile}`;
+
+        video.src = streamUrl;
 
         // make breakable filename (zero-width after dots)
         function makeBreakableName(name) {
@@ -130,29 +175,54 @@
             return name.replace(/\./g, '.\u200B');
         }
 
-        function setupButtonActions() {
-            const streamUrl = `${location.origin}/stream/${encoded}`;
-            
-            // Direct links
-            document.getElementById('download-btn').href = streamUrl;
+        // Resume playback logic
+        video.addEventListener('loadedmetadata', () => {
+            const savedTime = localStorage.getItem(storageKey);
+            if (savedTime) {
+                video.currentTime = parseFloat(savedTime);
+            }
+        });
+
+        video.addEventListener('timeupdate', () => {
+            if (video.currentTime > 0) {
+                localStorage.setItem(storageKey, video.currentTime);
+            }
+        });
+
+        // Fullscreen and Auto-rotate logic
+        async function handleFullscreen() {
+            try {
+                if (video.requestFullscreen) {
+                    await video.requestFullscreen();
+                } else if (video.webkitRequestFullscreen) {
+                    await video.webkitRequestFullscreen();
+                }
+
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('landscape').catch(err => {
+                        console.warn("Orientation lock failed:", err);
+                    });
+                }
+            } catch (err) {
+                console.error("Fullscreen error:", err);
+            }
+        }
+
+        fsBtn.addEventListener('click', handleFullscreen);
+
+        // Unlock orientation when exiting fullscreen
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock().catch(() => {});
+                }
+            }
+        });
+
+        function setupExternalPlayerButtons() {
             document.getElementById('mx-player-btn').href = `/play/mx/${encoded}`;
             document.getElementById('mx-pro-btn').href = `/play/mxpro/${encoded}`;
             document.getElementById('vlc-btn').href = `/play/vlc/${encoded}`;
-
-            // Clipboard
-            const copyBtn = document.getElementById('copy-stream-link-btn');
-            const copyBtnText = copyBtn.querySelector('span');
-            copyBtn.onclick = () => {
-                navigator.clipboard.writeText(streamUrl).then(() => {
-                    const originalText = copyBtnText.innerText;
-                    copyBtnText.innerText = 'Copied!';
-                    setTimeout(() => {
-                        copyBtnText.innerText = originalText;
-                    }, 2000);
-                }).catch(() => {
-                    alert('Could not copy automatically. Please copy this URL: ' + streamUrl);
-                });
-            };
         }
 
         async function fetchDetails() {
@@ -166,6 +236,16 @@
                 fileNameEl.innerText = breakableName;
                 fileNameEl.title = originalName;
                 document.getElementById('file-size').innerText = details.file_size || '';
+
+                if (details.subtitle_url) {
+                    const track = document.createElement('track');
+                    track.kind = 'subtitles';
+                    track.label = 'English';
+                    track.srclang = 'en';
+                    track.src = details.subtitle_url;
+                    track.default = true;
+                    video.appendChild(track);
+                }
             } catch (error) {
                 console.error("Failed to fetch file details:", error);
                 const fallbackName = makeBreakableName(rawFile);
@@ -175,7 +255,7 @@
             }
         }
 
-        setupButtonActions();
+        setupExternalPlayerButtons();
         fetchDetails();
     })();
     </script>
