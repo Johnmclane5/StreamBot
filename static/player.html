@@ -91,6 +91,9 @@
             color: #f1f1f1;
             font-size: 0.9rem;
             transition: background-color 0.2s;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .btn-icon:hover {
@@ -125,18 +128,18 @@
             <p class="hint-text">No sound or subtitle in video ? Try this below players</p>
 
             <div class="actions-container">
-                <a id="vlc-btn" class="btn-icon" href="#" target="_blank">
+                <div id="vlc-btn" class="btn-icon">
                     <i class="bi bi-cone-striped"></i>
                     <span>VLC</span>
-                </a>
-                <a id="mx-player-btn" class="btn-icon" href="#" target="_blank">
+                </div>
+                <div id="mx-player-btn" class="btn-icon">
                     <i class="bi bi-play-circle"></i>
                     <span>MX Player</span>
-                </a>
-                <a id="mx-pro-btn" class="btn-icon" href="#" target="_blank">
+                </div>
+                <div id="mx-pro-btn" class="btn-icon">
                     <i class="bi bi-play-circle-fill"></i>
                     <span>MX Player Pro</span>
-                </a>
+                </div>
             </div>
         </div>
 
@@ -202,10 +205,21 @@
         });
 
         function setupExternalPlayerButtons() {
-            document.getElementById('mx-player-btn').href = `/play/mx/${encoded}`;
-            document.getElementById('mx-pro-btn').href = `/play/mxpro/${encoded}`;
-            document.getElementById('vlc-btn').href = `/play/vlc/${encoded}`;
+            document.getElementById('mx-player-btn').addEventListener('click', () => {
+                window.open(`/play/mx/${encoded}`, '_blank');
+            });
+            document.getElementById('mx-pro-btn').addEventListener('click', () => {
+                window.open(`/play/mxpro/${encoded}`, '_blank');
+            });
+            document.getElementById('vlc-btn').addEventListener('click', () => {
+                window.open(`/play/vlc/${encoded}`, '_blank');
+            });
         }
+
+        // Disable right-click/long-press menu
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        }, false);
 
         async function fetchDetails() {
             try {
