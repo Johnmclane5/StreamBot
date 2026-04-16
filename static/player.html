@@ -43,14 +43,6 @@
             background: #000;
         }
 
-        .player-actions {
-            padding: 0.75rem;
-            background: #0a0a0a;
-            border-top: 1px solid #222;
-            display: flex;
-            justify-content: center;
-        }
-
         /* Info */
         .info-container {
             margin-top: 1.2rem;
@@ -121,21 +113,16 @@
     <div class="wrapper">
 
         <div class="video-container">
-            <video id="video-player" controls playsinline crossorigin="anonymous">
+            <video id="video-player" controls playsinline controlsList="nodownload" crossorigin="anonymous">
                 <p>Your browser doesn't support HTML5 video.</p>
             </video>
-            <div class="player-actions">
-                <button id="fullscreen-btn" class="btn btn-primary btn-sm">
-                    <i class="bi bi-arrows-fullscreen mr-1"></i> Fullscreen & Landscape
-                </button>
-            </div>
         </div>
 
         <div class="info-container">
             <h3 id="file-name" title=""></h3>
             <p id="file-size"></p>
             
-            <p class="hint-text">no sound or subtitle in video ? try this below players</p>
+            <p class="hint-text">No sound or subtitle in video ? Try this below players</p>
 
             <div class="actions-container">
                 <a id="vlc-btn" class="btn-icon" href="#" target="_blank">
@@ -162,7 +149,6 @@
         
         const video = document.getElementById('video-player');
         const fileNameEl = document.getElementById('file-name');
-        const fsBtn = document.getElementById('fullscreen-btn');
         
         const streamUrl = `${location.origin}/stream/${encoded}`;
         const storageKey = `resume_pos_${rawFile}`;
@@ -189,30 +175,26 @@
             }
         });
 
-        // Fullscreen and Auto-rotate logic
-        async function handleFullscreen() {
-            try {
-                if (video.requestFullscreen) {
-                    await video.requestFullscreen();
-                } else if (video.webkitRequestFullscreen) {
-                    await video.webkitRequestFullscreen();
-                }
-
-                if (screen.orientation && screen.orientation.lock) {
-                    await screen.orientation.lock('landscape').catch(err => {
-                        console.warn("Orientation lock failed:", err);
-                    });
-                }
-            } catch (err) {
-                console.error("Fullscreen error:", err);
-            }
-        }
-
-        fsBtn.addEventListener('click', handleFullscreen);
-
-        // Unlock orientation when exiting fullscreen
+        // Auto-rotate logic for native fullscreen
         document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
+            if (document.fullscreenElement) {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                }
+            } else {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock().catch(() => {});
+                }
+            }
+        });
+
+        // For older webkit browsers
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (document.webkitFullscreenElement) {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                }
+            } else {
                 if (screen.orientation && screen.orientation.unlock) {
                     screen.orientation.unlock().catch(() => {});
                 }
@@ -236,16 +218,6 @@
                 fileNameEl.innerText = breakableName;
                 fileNameEl.title = originalName;
                 document.getElementById('file-size').innerText = details.file_size || '';
-
-                if (details.subtitle_url) {
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'English';
-                    track.srclang = 'en';
-                    track.src = details.subtitle_url;
-                    track.default = true;
-                    video.appendChild(track);
-                }
             } catch (error) {
                 console.error("Failed to fetch file details:", error);
                 const fallbackName = makeBreakableName(rawFile);
