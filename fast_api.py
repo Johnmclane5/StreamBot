@@ -3,6 +3,7 @@ import base64
 import asyncio
 import mimetypes
 import logging
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
 from app import get_worker_manager, cache, Bot
 from config import MY_DOMAIN, CHUNK_SIZE
-from db import files_col
+from db import files_col, auth_users_col
 
 api = FastAPI()
 api.mount("/static", StaticFiles(directory="static"), name="static")
@@ -31,13 +32,37 @@ RETRY_DELAY = 3
 logger = logging.getLogger(__name__)
 
 
-async def decode_file_link(file_link: str) -> tuple[int, int]:
+async def decode_file_link(file_link: str) -> tuple[int, int, int]:
     try:
         padding = '=' * (-len(file_link) % 4)
         decoded = base64.urlsafe_b64decode(file_link + padding).decode()
-        return map(int, decoded.split("_"))
+        parts = list(map(int, decoded.split("_")))
+        if len(parts) == 2:
+            # Fallback for old links or links without user_id
+            return parts[0], parts[1], 0
+        return parts[0], parts[1], parts[2]
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid file link")
+
+
+async def is_user_authorized(user_id):
+    """Check if a user is authorized."""
+    if user_id == 0:
+        return False
+    doc = await auth_users_col.find_one({"user_id": user_id})
+    if not doc:
+        return False
+    expiry = doc["expiry"]
+    if isinstance(expiry, str):
+        try:
+            expiry = datetime.fromisoformat(expiry)
+        except Exception:
+            return False
+    if isinstance(expiry, datetime) and expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=timezone.utc)
+    if expiry < datetime.now(timezone.utc):
+        return False
+    return True
 
 
 async def get_file_properties(message):
@@ -195,7 +220,10 @@ async def get_file_stream(channel_id, message_id, request: Request):
 @api.get("/stream/{file_link}")
 @api.head("/stream/{file_link}")
 async def stream_file(file_link: str, request: Request):
-    channel_id, message_id = await decode_file_link(file_link)
+    channel_id, message_id, user_id = await decode_file_link(file_link)
+    
+    if not await is_user_authorized(user_id):
+        raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
 
     # If it's a HEAD request, we can release early without getting the full stream
     if request.method == "HEAD":
@@ -250,7 +278,9 @@ async def stream_file(file_link: str, request: Request):
 '''
 @api.get("/download/{file_link}")
 async def download_file(file_link: str, request: Request):
-    channel_id, message_id = decode_file_link(file_link)
+    channel_id, message_id, user_id = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id):
+        raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     media_streamer, _, _, file_size, file_name = await get_file_stream(channel_id, message_id, request)
     headers = {
         "Content-Disposition": f"attachment; filename=\"{file_name}\"",
@@ -262,7 +292,9 @@ async def download_file(file_link: str, request: Request):
 
 @api.get("/subtitle/{file_link}")
 async def serve_subtitle(file_link: str, request: Request):
-    channel_id, message_id = await decode_file_link(file_link)
+    channel_id, message_id, user_id = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id):
+        raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     media_streamer, _, _, file_size, _ = await get_file_stream(channel_id, message_id, request)
     headers = {
         "Content-Type": "text/plain",
@@ -272,11 +304,16 @@ async def serve_subtitle(file_link: str, request: Request):
 
 @api.get("/player/{file_link}")
 async def play_video(file_link: str):
+    _, _, user_id = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id):
+        raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     return FileResponse(f"static/player.html")
 
 @api.get("/details/{file_link}")
 async def get_file_details(file_link: str):
-    channel_id, message_id = await decode_file_link(file_link)
+    channel_id, message_id, user_id = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id):
+        raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     worker_manager = get_worker_manager()
     message = None
     worker = None
@@ -321,7 +358,7 @@ async def get_file_details(file_link: str):
     subtitle_doc = await files_col.find_one({"file_name": subtitle_name})
     if subtitle_doc:
         bot_instance = Bot("temp_instance")
-        subtitle_link = bot_instance.encode_file_link(subtitle_doc['channel_id'], subtitle_doc['message_id'])
+        subtitle_link = bot_instance.encode_file_link(subtitle_doc['channel_id'], subtitle_doc['message_id'], user_id)
         subtitle_url = f"/subtitle/{subtitle_link}"
 
     return JSONResponse({
@@ -333,6 +370,9 @@ async def get_file_details(file_link: str):
     
 @api.get("/play/{player}/{file_link}")
 async def play_in_player(player: str, file_link: str):
+    _, _, user_id = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id):
+        raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
     if player == "mx":
         redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end"
