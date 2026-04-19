@@ -71,22 +71,21 @@ async def get_file_properties(message):
 
     # Try to get file doc from DB
     file_doc = await files_col.find_one({"channel_id": channel_id, "message_id": message_id})
-    file_name = file_doc.get("file_name") if file_doc else None
-
-    # Extract file info from Telegram message
-    media = message.document or message.video or message.audio
     
-    if not media:
+    if not file_doc:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail="Unsupported file type"
+            detail="File not found in database"
         )
 
-    # If DB doesn't have a name, fall back to Telegram-provided file_name
-    actual_file_name = file_name or getattr(media, "file_name", "Unknown")
-    mime_type = getattr(media, "mime_type", None)
+    file_name = file_doc.get("file_name", "Unknown")
+    file_size = file_doc.get("file_size", 0)
+    
+    # MIME type from file_format (DB)
+    file_format = file_doc.get("file_format")
+    mime_type = file_format if file_format and "/" in file_format else None
 
-    return actual_file_name, media.file_size, mime_type
+    return file_name, file_size, mime_type
 
 @api.get("/")
 async def root():
