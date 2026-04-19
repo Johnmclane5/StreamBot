@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>File Details</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        /* Always Dark Mode */
+        html, body {
+            margin: 0;
+            background-color: #000 !important;
+            color: #f1f1f1 !important;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        }
+        a, button { color: inherit; }
+
+        .wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem;
+            text-align: center;
+        }
+
+        .video-container, .audio-container {
+            width: 100%;
+            background: #000;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border: 1px solid #222;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        video, audio {
+            width: 100%;
+            max-height: 80vh;
+            display: block;
+            background: #000;
+        }
+
+        audio {
+            padding: 10px;
+        }
+
+        /* Info */
+        .info-container {
+            margin-top: 1.2rem;
+            background: #0f0f0f;
+            padding: 1.2rem;
+            border-radius: .5rem;
+            border: 1px solid #222;
+        }
+
+        #file-name {
+            font-size: 1.25rem;
+            margin: 0;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        #file-size { margin-top: .3rem; color: #aaa; }
+
+        .hint-text {
+            margin-top: 2rem;
+            color: #ffc107;
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
+        .actions-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            min-width: 100px;
+            background-color: #222;
+            border: 1px solid #444;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            color: #f1f1f1;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .btn-icon:hover {
+            background-color: #333;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .btn-icon i {
+            font-size: 1.75rem;
+        }
+
+        @media (max-width: 576px) {
+            .wrapper { padding: 1rem .6rem; }
+            .btn-icon { min-width: 80px; padding: 0.5rem; font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+
+        <div id="video-wrapper" class="video-container">
+            <video id="video-player" controls playsinline controlsList="nodownload" crossorigin="anonymous">
+                <p>Your browser doesn't support HTML5 video.</p>
+            </video>
+        </div>
+
+        <div id="audio-wrapper" class="audio-container" style="display: none;">
+            <audio id="audio-player" controls controlsList="nodownload" crossorigin="anonymous">
+                <p>Your browser doesn't support HTML5 audio.</p>
+            </audio>
+        </div>
+
+        <div class="info-container">
+            <h3 id="file-name" title=""></h3>
+            <p id="file-size"></p>
+            
+            <p id="hint-text" class="hint-text">No sound or subtitle in video? Try these players below</p>
+
+            <div class="actions-container">
+                <div id="vlc-btn" class="btn-icon">
+                    <i class="bi bi-cone-striped"></i>
+                    <span>VLC</span>
+                </div>
+                <div id="mx-player-btn" class="btn-icon">
+                    <i class="bi bi-play-circle"></i>
+                    <span>MX Player</span>
+                </div>
+                <div id="mx-pro-btn" class="btn-icon">
+                    <i class="bi bi-play-circle-fill"></i>
+                    <span>MX Player Pro</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    (async () => {
+        const rawFile = window.location.pathname.split('/').pop() || '';
+        const encoded = encodeURIComponent(rawFile);
+        
+        const video = document.getElementById('video-player');
+        const audio = document.getElementById('audio-player');
+        const videoWrapper = document.getElementById('video-wrapper');
+        const audioWrapper = document.getElementById('audio-wrapper');
+        const fileNameEl = document.getElementById('file-name');
+        const hintText = document.getElementById('hint-text');
+        
+        const streamUrl = `${location.origin}/stream/${encoded}`;
+        const storageKey = `resume_pos_${rawFile}`;
+        let currentMimeType = 'video/*';
+
+        // Set source temporarily to video, will adjust after fetchDetails
+        video.src = streamUrl;
+
+        // make breakable filename (zero-width after dots)
+        function makeBreakableName(name) {
+            if (!name) return '';
+            return name.replace(/\./g, '.\u200B');
+        }
+
+        function setupResumePlayback(player) {
+            player.addEventListener('loadedmetadata', () => {
+                const savedTime = localStorage.getItem(storageKey);
+                if (savedTime) {
+                    player.currentTime = parseFloat(savedTime);
+                }
+            });
+
+            player.addEventListener('timeupdate', () => {
+                if (player.currentTime > 0) {
+                    localStorage.setItem(storageKey, player.currentTime);
+                }
+            });
+        }
+
+        setupResumePlayback(video);
+        setupResumePlayback(audio);
+
+        // Auto-rotate logic for native fullscreen
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                }
+            } else {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock().catch(() => {});
+                }
+            }
+        });
+
+        // For older webkit browsers
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (document.webkitFullscreenElement) {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                }
+            } else {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock().catch(() => {});
+                }
+            }
+        });
+
+        function setupExternalPlayerButtons() {
+            document.getElementById('mx-player-btn').addEventListener('click', () => {
+                window.open(`/play/mx/${encoded}?mime_type=${encodeURIComponent(currentMimeType)}`, '_blank');
+            });
+            document.getElementById('mx-pro-btn').addEventListener('click', () => {
+                window.open(`/play/mxpro/${encoded}?mime_type=${encodeURIComponent(currentMimeType)}`, '_blank');
+            });
+            document.getElementById('vlc-btn').addEventListener('click', () => {
+                window.open(`/play/vlc/${encoded}?mime_type=${encodeURIComponent(currentMimeType)}`, '_blank');
+            });
+        }
+
+        // Disable right-click/long-press menu
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        }, false);
+
+        async function fetchDetails() {
+            try {
+                const res = await fetch(`/details/${encoded}`);
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const details = await res.json();
+
+                const originalName = details.file_name || rawFile;
+                const breakableName = makeBreakableName(originalName);
+                fileNameEl.innerText = breakableName;
+                fileNameEl.title = originalName;
+                document.getElementById('file-size').innerText = details.file_size || '';
+
+                if (details.mime_type) {
+                    currentMimeType = details.mime_type;
+                    if (currentMimeType.startsWith('audio/')) {
+                        videoWrapper.style.display = 'none';
+                        audioWrapper.style.display = 'block';
+                        video.src = '';
+                        audio.src = streamUrl;
+                        hintText.innerText = "Trouble playing audio? Try these players below";
+                    } else {
+                        videoWrapper.style.display = 'block';
+                        audioWrapper.style.display = 'none';
+                        hintText.innerText = "No sound or subtitle in video? Try these players below";
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch file details:", error);
+                const fallbackName = makeBreakableName(rawFile);
+                fileNameEl.innerText = fallbackName;
+                fileNameEl.title = rawFile;
+                document.getElementById('file-size').innerText = 'Unknown size';
+            }
+        }
+
+        setupExternalPlayerButtons();
+        fetchDetails();
+    })();
+    </script>
+</body>
+</html>

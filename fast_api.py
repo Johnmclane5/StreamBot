@@ -84,8 +84,9 @@ async def get_file_properties(message):
 
     # If DB doesn't have a name, fall back to Telegram-provided file_name
     actual_file_name = file_name or getattr(media, "file_name", "Unknown")
+    mime_type = getattr(media, "mime_type", None)
 
-    return actual_file_name, media.file_size
+    return actual_file_name, media.file_size, mime_type
 
 @api.get("/")
 async def root():
@@ -123,7 +124,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
         worker_manager.release_worker(worker.id)
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
-    file_name, file_size = await get_file_properties(message)
+    file_name, file_size, mime_type = await get_file_properties(message)
     range_header = request.headers.get("range")
     start, end = 0, file_size - 1
 
@@ -214,7 +215,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
             worker_manager.release_worker(worker.id)
 
 
-    return media_streamer, start, end, file_size, file_name
+    return media_streamer, start, end, file_size, file_name, mime_type
 
 
 @api.get("/stream/{file_link}")
@@ -255,15 +256,15 @@ async def stream_file(file_link: str, request: Request):
                 worker_manager.release_worker(worker.id)
             raise HTTPException(status_code=404, detail="File not found after retries.")
 
-        _, file_size = await get_file_properties(message)
+        _, file_size, _ = await get_file_properties(message)
         worker_manager.release_worker(worker.id)
         return Response(status_code=200, headers={"Content-Length": str(file_size), "Accept-Ranges": "bytes"})
 
-    media_streamer, start, end, file_size, file_name = await get_file_stream(channel_id, message_id, request)
+    media_streamer, start, end, file_size, file_name, media_mime_type = await get_file_stream(channel_id, message_id, request)
 
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
-        mime_type = "video/mp4"
+        mime_type = media_mime_type or "video/mp4"
 
     headers = {
         "Content-Type": mime_type,
@@ -281,7 +282,7 @@ async def download_file(file_link: str, request: Request):
     channel_id, message_id, user_id = await decode_file_link(file_link)
     if not await is_user_authorized(user_id):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
-    media_streamer, _, _, file_size, file_name = await get_file_stream(channel_id, message_id, request)
+    media_streamer, _, _, file_size, file_name, _ = await get_file_stream(channel_id, message_id, request)
     headers = {
         "Content-Disposition": f"attachment; filename=\"{file_name}\"",
         "Content-Type": "application/octet-stream",
@@ -295,7 +296,7 @@ async def serve_subtitle(file_link: str, request: Request):
     channel_id, message_id, user_id = await decode_file_link(file_link)
     if not await is_user_authorized(user_id):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
-    media_streamer, _, _, file_size, _ = await get_file_stream(channel_id, message_id, request)
+    media_streamer, _, _, file_size, _, _ = await get_file_stream(channel_id, message_id, request)
     headers = {
         "Content-Type": "text/plain",
         "Content-Length": str(file_size),
@@ -346,10 +347,10 @@ async def get_file_details(file_link: str):
     
     worker_manager.release_worker(worker.id)
 
-    file_name, file_size = await get_file_properties(message)
+    file_name, file_size, media_mime_type = await get_file_properties(message)
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
-        mime_type = "video/mp4"
+        mime_type = media_mime_type or "video/mp4"
 
     # Subtitle search logic
     subtitle_url = None
@@ -369,17 +370,22 @@ async def get_file_details(file_link: str):
     })
     
 @api.get("/play/{player}/{file_link}")
-async def play_in_player(player: str, file_link: str):
+async def play_in_player(player: str, file_link: str, mime_type: str = "video/*"):
     _, _, user_id = await decode_file_link(file_link)
     if not await is_user_authorized(user_id):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
+    
+    # Ensure mime_type is safe for intent
+    if not mime_type or "/" not in mime_type:
+        mime_type = "video/*"
+
     if player == "mx":
-        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;end"
+        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type={mime_type};package=com.mxtech.videoplayer.ad;end"
     elif player == "mxpro":
-        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.pro;end"
+        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type={mime_type};package=com.mxtech.videoplayer.pro;end"
     elif player == "vlc":
-        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type=video/*;package=org.videolan.vlc;end"
+        redirect_url = f"intent:{stream_url}#Intent;action=android.intent.action.VIEW;type={mime_type};package=org.videolan.vlc;end"
     else:
         raise HTTPException(status_code=404, detail="Player not supported")
     return RedirectResponse(url=redirect_url, status_code=302)
