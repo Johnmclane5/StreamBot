@@ -65,10 +65,7 @@ async def is_user_authorized(user_id):
     return True
 
 
-async def get_file_properties(message):
-    channel_id = message.chat.id
-    message_id = message.id
-
+async def get_file_properties(channel_id: int, message_id: int):
     # Try to get file doc from DB
     file_doc = await files_col.find_one({"channel_id": channel_id, "message_id": message_id})
     
@@ -123,7 +120,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
         worker_manager.release_worker(worker.id)
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
-    file_name, file_size, mime_type = await get_file_properties(message)
+    file_name, file_size, mime_type = await get_file_properties(channel_id, message_id)
     range_header = request.headers.get("range")
     start, end = 0, file_size - 1
 
@@ -225,38 +222,9 @@ async def stream_file(file_link: str, request: Request):
     if not await is_user_authorized(user_id):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
 
-    # If it's a HEAD request, we can release early without getting the full stream
+    # If it's a HEAD request, avoid using a worker by fetching size from DB
     if request.method == "HEAD":
-        worker_manager = get_worker_manager()
-        message = None
-        worker = None
-        for _ in range(MAX_RETRIES):
-            worker = worker_manager.get_worker()
-            if not worker:
-                raise HTTPException(status_code=503, detail="All workers are busy.")
-            try:
-                message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
-                if message:
-                    break
-            except (FloodWait, Timeout, RPCError):
-                worker_manager.release_worker(worker.id)
-                worker_manager.put_worker_on_cooldown(worker.id)
-                continue
-            except ChannelInvalid:
-                worker_manager.release_worker(worker.id)
-                raise HTTPException(status_code=404, detail="Channel not found")
-            except Exception as e:
-                worker_manager.release_worker(worker.id)
-                worker_manager.put_worker_on_cooldown(worker.id)
-                raise HTTPException(status_code=500, detail=f"Worker error: {e}")
-        
-        if not message:
-            if worker:
-                worker_manager.release_worker(worker.id)
-            raise HTTPException(status_code=404, detail="File not found after retries.")
-
-        _, file_size, _ = await get_file_properties(message)
-        worker_manager.release_worker(worker.id)
+        _, file_size, _ = await get_file_properties(channel_id, message_id)
         return Response(status_code=200, headers={"Content-Length": str(file_size), "Accept-Ranges": "bytes"})
 
     media_streamer, start, end, file_size, file_name, media_mime_type = await get_file_stream(channel_id, message_id, request)
@@ -314,39 +282,9 @@ async def get_file_details(file_link: str):
     channel_id, message_id, user_id = await decode_file_link(file_link)
     if not await is_user_authorized(user_id):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
-    worker_manager = get_worker_manager()
-    message = None
-    worker = None
 
-    for _ in range(MAX_RETRIES):
-        worker = worker_manager.get_worker()
-        if not worker:
-            raise HTTPException(status_code=503, detail="All workers are busy.")
-
-        try:
-            message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
-            if message:
-                break
-        except (FloodWait, Timeout, RPCError, AuthBytesInvalid):
-            worker_manager.release_worker(worker.id)
-            worker_manager.put_worker_on_cooldown(worker.id)
-            continue
-        except ChannelInvalid:
-            worker_manager.release_worker(worker.id)
-            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
-        except Exception as e:
-            worker_manager.release_worker(worker.id)
-            worker_manager.put_worker_on_cooldown(worker.id)
-            raise HTTPException(status_code=500, detail=f"Worker error: {e}")
-
-    if not message:
-        if worker:
-            worker_manager.release_worker(worker.id)
-        raise HTTPException(status_code=404, detail="File not found after retries.")
-    
-    worker_manager.release_worker(worker.id)
-
-    file_name, file_size, media_mime_type = await get_file_properties(message)
+    # Fetch details strictly from DB - no worker needed!
+    file_name, file_size, media_mime_type = await get_file_properties(channel_id, message_id)
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
         mime_type = media_mime_type or "video/mp4"
