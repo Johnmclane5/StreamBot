@@ -26,7 +26,7 @@
             text-align: center;
         }
 
-        .video-container, .audio-container {
+        .video-container {
             width: 100%;
             background: #000;
             border-radius: 0.5rem;
@@ -36,15 +36,11 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        video, audio {
+        video {
             width: 100%;
             max-height: 80vh;
             display: block;
             background: #000;
-        }
-
-        audio {
-            padding: 10px;
         }
 
         /* Info */
@@ -119,23 +115,17 @@
 <body>
     <div class="wrapper">
 
-        <div id="video-wrapper" class="video-container">
+        <div class="video-container">
             <video id="video-player" controls playsinline controlsList="nodownload" crossorigin="anonymous">
                 <p>Your browser doesn't support HTML5 video.</p>
             </video>
-        </div>
-
-        <div id="audio-wrapper" class="audio-container" style="display: none;">
-            <audio id="audio-player" controls controlsList="nodownload" crossorigin="anonymous">
-                <p>Your browser doesn't support HTML5 audio.</p>
-            </audio>
         </div>
 
         <div class="info-container">
             <h3 id="file-name" title=""></h3>
             <p id="file-size"></p>
             
-            <p id="hint-text" class="hint-text">No sound or subtitle in video? Try these players below</p>
+            <p class="hint-text">No sound or subtitle in video ? Try this below players</p>
 
             <div class="actions-container">
                 <div id="vlc-btn" class="btn-icon">
@@ -161,17 +151,11 @@
         const encoded = encodeURIComponent(rawFile);
         
         const video = document.getElementById('video-player');
-        const audio = document.getElementById('audio-player');
-        const videoWrapper = document.getElementById('video-wrapper');
-        const audioWrapper = document.getElementById('audio-wrapper');
         const fileNameEl = document.getElementById('file-name');
-        const hintText = document.getElementById('hint-text');
         
         const streamUrl = `${location.origin}/stream/${encoded}`;
         const storageKey = `resume_pos_${rawFile}`;
-        let currentMimeType = 'video/*';
 
-        // Set source temporarily to video, will adjust after fetchDetails
         video.src = streamUrl;
 
         // make breakable filename (zero-width after dots)
@@ -180,23 +164,19 @@
             return name.replace(/\./g, '.\u200B');
         }
 
-        function setupResumePlayback(player) {
-            player.addEventListener('loadedmetadata', () => {
-                const savedTime = localStorage.getItem(storageKey);
-                if (savedTime) {
-                    player.currentTime = parseFloat(savedTime);
-                }
-            });
+        // Resume playback logic
+        video.addEventListener('loadedmetadata', () => {
+            const savedTime = localStorage.getItem(storageKey);
+            if (savedTime) {
+                video.currentTime = parseFloat(savedTime);
+            }
+        });
 
-            player.addEventListener('timeupdate', () => {
-                if (player.currentTime > 0) {
-                    localStorage.setItem(storageKey, player.currentTime);
-                }
-            });
-        }
-
-        setupResumePlayback(video);
-        setupResumePlayback(audio);
+        video.addEventListener('timeupdate', () => {
+            if (video.currentTime > 0) {
+                localStorage.setItem(storageKey, video.currentTime);
+            }
+        });
 
         // Auto-rotate logic for native fullscreen
         document.addEventListener('fullscreenchange', () => {
@@ -226,13 +206,13 @@
 
         function setupExternalPlayerButtons() {
             document.getElementById('mx-player-btn').addEventListener('click', () => {
-                window.open(`/play/mx/${encoded}?mime_type=${encodeURIComponent(currentMimeType)}`, '_blank');
+                window.open(`/play/mx/${encoded}`, '_blank');
             });
             document.getElementById('mx-pro-btn').addEventListener('click', () => {
-                window.open(`/play/mxpro/${encoded}?mime_type=${encodeURIComponent(currentMimeType)}`, '_blank');
+                window.open(`/play/mxpro/${encoded}`, '_blank');
             });
             document.getElementById('vlc-btn').addEventListener('click', () => {
-                window.open(`/play/vlc/${encoded}?mime_type=${encodeURIComponent(currentMimeType)}`, '_blank');
+                window.open(`/play/vlc/${encoded}`, '_blank');
             });
         }
 
@@ -252,21 +232,6 @@
                 fileNameEl.innerText = breakableName;
                 fileNameEl.title = originalName;
                 document.getElementById('file-size').innerText = details.file_size || '';
-
-                if (details.mime_type) {
-                    currentMimeType = details.mime_type;
-                    if (currentMimeType.startsWith('audio/')) {
-                        videoWrapper.style.display = 'none';
-                        audioWrapper.style.display = 'block';
-                        video.src = '';
-                        audio.src = streamUrl;
-                        hintText.innerText = "Trouble playing audio? Try these players below";
-                    } else {
-                        videoWrapper.style.display = 'block';
-                        audioWrapper.style.display = 'none';
-                        hintText.innerText = "No sound or subtitle in video? Try these players below";
-                    }
-                }
             } catch (error) {
                 console.error("Failed to fetch file details:", error);
                 const fallbackName = makeBreakableName(rawFile);
