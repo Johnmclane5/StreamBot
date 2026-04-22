@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>File Details</title>
+    <title>Streaming Page</title>
     
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
@@ -20,60 +20,47 @@
         a, button { color: inherit; }
 
         .wrapper {
-            max-width: 900px;
+            max-width: 600px;
             margin: 0 auto;
-            padding: 1.5rem 1rem;
+            padding: 2rem 1rem;
             text-align: center;
         }
 
-        .video-container {
-            width: 100%;
-            background: #000;
-            border-radius: 0.5rem;
-            overflow: hidden;
-            margin-bottom: 1.5rem;
+        .info-container {
+            background: #0f0f0f;
+            padding: 1.5rem;
+            border-radius: .75rem;
             border: 1px solid #222;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-
-        video {
-            width: 100%;
-            max-height: 80vh;
-            display: block;
-            background: #000;
-        }
-
-        /* Info */
-        .info-container {
-            margin-top: 1.2rem;
-            background: #0f0f0f;
-            padding: 1.2rem;
-            border-radius: .5rem;
-            border: 1px solid #222;
+            margin-bottom: 2rem;
         }
 
         #file-name {
-            font-size: 1.25rem;
+            font-size: 1.4rem;
+            font-weight: 600;
             margin: 0;
             white-space: normal;
             overflow-wrap: anywhere;
             word-break: break-word;
+            color: #fff;
         }
 
-        #file-size { margin-top: .3rem; color: #aaa; }
+        #file-size { margin-top: .5rem; color: #aaa; font-size: 1rem; }
 
-        .hint-text {
+        .section-title {
             margin-top: 2rem;
+            margin-bottom: 1.2rem;
+            font-size: 1.2rem;
+            font-weight: 600;
             color: #ffc107;
-            font-weight: 500;
-            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .actions-container {
             display: flex;
             justify-content: center;
             gap: 1rem;
-            margin-top: 1rem;
             flex-wrap: wrap;
         }
 
@@ -84,127 +71,200 @@
             gap: 0.5rem;
             padding: 0.75rem;
             min-width: 100px;
-            background-color: #222;
-            border: 1px solid #444;
-            border-radius: 0.5rem;
-            text-decoration: none;
-            color: #f1f1f1;
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 0.6rem;
+            text-decoration: none !important;
+            color: #f1f1f1 !important;
             font-size: 0.9rem;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
             cursor: pointer;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
         
         .btn-icon:hover {
-            background-color: #333;
-            color: #fff;
-            text-decoration: none;
+            background-color: #252525;
+            border-color: #444;
+            transform: translateY(-2px);
         }
 
         .btn-icon i {
-            font-size: 1.75rem;
+            font-size: 1.8rem;
+        }
+
+        /* iOS Section */
+        .ios-section {
+            background: #0f0f0f;
+            padding: 1.5rem;
+            border-radius: .75rem;
+            border: 1px solid #222;
+            text-align: left;
+            margin-top: 2rem;
+        }
+
+        .ios-title {
+            color: #007bff;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .guide-steps {
+            padding-left: 1.2rem;
+            margin-bottom: 1.5rem;
+            color: #ccc;
+            font-size: 0.95rem;
+        }
+
+        .guide-steps li {
+            margin-bottom: 0.5rem;
+        }
+
+        .ios-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .btn-ios {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            padding: 0.8rem;
+            background-color: #222;
+            border: 1px solid #444;
+            border-radius: 0.5rem;
+            color: #fff !important;
+            text-decoration: none !important;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-ios:hover {
+            background-color: #333;
+        }
+
+        .btn-copy {
+            background-color: #007bff;
+            border: none;
+        }
+
+        .btn-copy:hover {
+            background-color: #0069d9;
+        }
+
+        .toast-msg {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: none;
+            z-index: 1000;
         }
 
         @media (max-width: 576px) {
-            .wrapper { padding: 1rem .6rem; }
-            .btn-icon { min-width: 80px; padding: 0.5rem; font-size: 0.8rem; }
+            .wrapper { padding: 1.5rem .8rem; }
+            .btn-icon { min-width: 90px; }
         }
     </style>
 </head>
 <body>
     <div class="wrapper">
 
-        <div class="video-container">
-            <video id="video-player" controls playsinline controlsList="nodownload" crossorigin="anonymous">
-                <p>Your browser doesn't support HTML5 video.</p>
-            </video>
+        <div class="info-container">
+            <h3 id="file-name">Loading...</h3>
+            <p id="file-size"></p>
         </div>
 
-        <div class="info-container">
-            <h3 id="file-name" title=""></h3>
-            <p id="file-size"></p>
-            
-            <p class="hint-text">No sound or subtitle in video ? Try this below players</p>
+        <div class="section-title">Stream on External Player</div>
+        
+        <div class="actions-container">
+            <div id="vlc-btn" class="btn-icon">
+                <i class="bi bi-cone-striped" style="color: #ff8800;"></i>
+                <span>VLC</span>
+            </div>
+            <div id="mx-player-btn" class="btn-icon">
+                <i class="bi bi-play-circle" style="color: #2196f3;"></i>
+                <span>MX Player</span>
+            </div>
+            <div id="mx-pro-btn" class="btn-icon">
+                <i class="bi bi-play-circle-fill" style="color: #1976d2;"></i>
+                <span>MX Pro</span>
+            </div>
+        </div>
 
-            <div class="actions-container">
-                <div id="vlc-btn" class="btn-icon">
-                    <i class="bi bi-cone-striped"></i>
-                    <span>VLC</span>
-                </div>
-                <div id="mx-player-btn" class="btn-icon">
-                    <i class="bi bi-play-circle"></i>
-                    <span>MX Player</span>
-                </div>
-                <div id="mx-pro-btn" class="btn-icon">
-                    <i class="bi bi-play-circle-fill"></i>
-                    <span>MX Player Pro</span>
-                </div>
+        <div class="ios-section">
+            <div class="ios-title">
+                <i class="bi bi-apple"></i> For iOS Streaming
+            </div>
+            <ul class="guide-steps">
+                <li>Install VLC from the App Store if you haven't.</li>
+                <li>Copy the Stream URL using the button below.</li>
+                <li>Open <b>VLC</b> app and go to the <b>Network</b> tab.</li>
+                <li>Select <b>Open Network Stream</b>.</li>
+                <li>Paste the URL and start streaming.</li>
+            </ul>
+            <div class="ios-actions">
+                <button id="copy-btn" class="btn-ios btn-copy">
+                    <i class="bi bi-clipboard"></i> Copy Stream URL
+                </button>
+                <a href="https://apps.apple.com/app/vlc-for-mobile/id650377962" target="_blank" class="btn-ios">
+                    <i class="bi bi-download"></i> Get VLC for iOS
+                </a>
             </div>
         </div>
 
     </div>
 
+    <div id="toast" class="toast-msg">Copied to clipboard!</div>
+
     <script>
     (async () => {
         const rawFile = window.location.pathname.split('/').pop() || '';
         const encoded = encodeURIComponent(rawFile);
-        
-        const video = document.getElementById('video-player');
         const fileNameEl = document.getElementById('file-name');
-        
         const streamUrl = `${location.origin}/stream/${encoded}`;
-        const storageKey = `resume_pos_${rawFile}`;
 
-        video.src = streamUrl;
-
-        // make breakable filename (zero-width after dots)
         function makeBreakableName(name) {
             if (!name) return '';
             return name.replace(/\./g, '.\u200B');
         }
 
-        // Resume playback logic
-        video.addEventListener('loadedmetadata', () => {
-            const savedTime = localStorage.getItem(storageKey);
-            if (savedTime) {
-                video.currentTime = parseFloat(savedTime);
-            }
-        });
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
 
-        video.addEventListener('timeupdate', () => {
-            if (video.currentTime > 0) {
-                localStorage.setItem(storageKey, video.currentTime);
+        async function copyToClipboard() {
+            try {
+                await navigator.clipboard.writeText(streamUrl);
+                showToast('URL Copied!');
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                // Fallback for older browsers
+                const el = document.createElement('textarea');
+                el.value = streamUrl;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                showToast('URL Copied!');
             }
-        });
+        }
 
-        // Auto-rotate logic for native fullscreen
-        document.addEventListener('fullscreenchange', () => {
-            if (document.fullscreenElement) {
-                if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock('landscape').catch(() => {});
-                }
-            } else {
-                if (screen.orientation && screen.orientation.unlock) {
-                    screen.orientation.unlock().catch(() => {});
-                }
-            }
-        });
-
-        // For older webkit browsers
-        document.addEventListener('webkitfullscreenchange', () => {
-            if (document.webkitFullscreenElement) {
-                if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock('landscape').catch(() => {});
-                }
-            } else {
-                if (screen.orientation && screen.orientation.unlock) {
-                    screen.orientation.unlock().catch(() => {});
-                }
-            }
-        });
-
-        function setupExternalPlayerButtons() {
+        function setupButtons() {
             document.getElementById('mx-player-btn').addEventListener('click', () => {
                 window.open(`/play/mx/${encoded}`, '_blank');
             });
@@ -214,6 +274,7 @@
             document.getElementById('vlc-btn').addEventListener('click', () => {
                 window.open(`/play/vlc/${encoded}`, '_blank');
             });
+            document.getElementById('copy-btn').addEventListener('click', copyToClipboard);
         }
 
         // Disable right-click/long-press menu
@@ -228,20 +289,17 @@
                 const details = await res.json();
 
                 const originalName = details.file_name || rawFile;
-                const breakableName = makeBreakableName(originalName);
-                fileNameEl.innerText = breakableName;
+                fileNameEl.innerText = makeBreakableName(originalName);
                 fileNameEl.title = originalName;
                 document.getElementById('file-size').innerText = details.file_size || '';
             } catch (error) {
                 console.error("Failed to fetch file details:", error);
-                const fallbackName = makeBreakableName(rawFile);
-                fileNameEl.innerText = fallbackName;
-                fileNameEl.title = rawFile;
+                fileNameEl.innerText = makeBreakableName(rawFile);
                 document.getElementById('file-size').innerText = 'Unknown size';
             }
         }
 
-        setupExternalPlayerButtons();
+        setupButtons();
         fetchDetails();
     })();
     </script>
