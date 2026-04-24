@@ -3,284 +3,119 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Streaming Page</title>
+    <title>Stream Player</title>
     
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- ArtPlayer JS -->
+    <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
 
     <style>
-        /* Always Dark Mode */
         html, body {
             margin: 0;
             background-color: #000 !important;
             color: #f1f1f1 !important;
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        a, button { color: inherit; }
 
-        .wrapper {
-            max-width: 600px;
-            margin: 0 auto;
+        .container-fluid {
+            max-width: 1000px;
             padding: 2rem 1rem;
-            text-align: center;
+            width: 100%;
+        }
+
+        .player-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            aspect-ratio: 16 / 9;
+            background-color: #050505;
+        }
+
+        #artplayer {
+            width: 100%;
+            height: 100%;
+        }
+
+        #audio-poster {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+            z-index: 1;
+            pointer-events: none;
         }
 
         .info-container {
-            background: #0f0f0f;
+            margin-top: 1.5rem;
+            background: #111;
             padding: 1.5rem;
             border-radius: .75rem;
             border: 1px solid #222;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            margin-bottom: 2rem;
+        }
+
+        .info-container.hidden {
+            display: none;
         }
 
         #file-name {
-            font-size: 1.4rem;
+            font-size: 1.25rem;
             font-weight: 600;
-            margin: 0;
-            white-space: normal;
-            overflow-wrap: anywhere;
-            word-break: break-word;
+            margin-bottom: 0.5rem;
             color: #fff;
+            overflow-wrap: anywhere;
         }
 
-        #file-size { margin-top: .5rem; color: #aaa; font-size: 1rem; }
-
-        .section-title {
-            margin-top: 2rem;
-            margin-bottom: 1.2rem;
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #ffc107;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        #file-size {
+            color: #888;
+            font-size: 0.95rem;
+            margin: 0;
         }
 
-        .actions-container {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .btn-icon {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem;
-            min-width: 100px;
-            background-color: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 0.6rem;
-            text-decoration: none !important;
-            color: #f1f1f1 !important;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-            cursor: pointer;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+        @media (max-width: 768px) {
+            .player-container { aspect-ratio: 16 / 9; }
         }
         
-        .btn-icon:hover {
-            background-color: #252525;
-            border-color: #444;
-            transform: translateY(-2px);
-        }
-
-        .btn-icon i {
-            font-size: 1.8rem;
-        }
-
-        /* iOS Section */
-        .ios-section {
-            background: #0f0f0f;
-            padding: 1.5rem;
-            border-radius: .75rem;
-            border: 1px solid #222;
-            text-align: left;
-            margin-top: 2rem;
-        }
-
-        .ios-title {
-            color: #007bff;
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .guide-steps {
-            padding-left: 1.2rem;
-            margin-bottom: 1.5rem;
-            color: #ccc;
-            font-size: 0.95rem;
-        }
-
-        .guide-steps li {
-            margin-bottom: 0.5rem;
-        }
-
-        .ios-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 0.8rem;
-        }
-
-        .btn-ios {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.6rem;
-            padding: 0.8rem;
-            background-color: #222;
-            border: 1px solid #444;
-            border-radius: 0.5rem;
-            color: #fff !important;
-            text-decoration: none !important;
-            font-weight: 500;
-            transition: background 0.2s;
-        }
-
-        .btn-ios:hover {
-            background-color: #333;
-        }
-
-        .btn-copy {
-            background-color: #007bff;
-            border: none;
-        }
-
-        .btn-copy:hover {
-            background-color: #0069d9;
-        }
-
-        .toast-msg {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #333;
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            display: none;
-            z-index: 1000;
-        }
-
         @media (max-width: 576px) {
-            .wrapper { padding: 1.5rem .8rem; }
-            .btn-icon { min-width: 90px; }
+            .container-fluid { padding: 1rem 0.5rem; }
+            #file-name { font-size: 1.1rem; }
         }
     </style>
 </head>
 <body>
-    <div class="wrapper">
+    <div class="container-fluid">
+        <div class="player-container">
+            <img id="audio-poster" src="" alt="Poster">
+            <div id="artplayer"></div>
+        </div>
 
         <div class="info-container">
-            <h3 id="file-name">Loading...</h3>
+            <h3 id="file-name"></h3>
             <p id="file-size"></p>
         </div>
-
-        <div class="section-title">Stream on External Player</div>
-        
-        <div class="actions-container">
-            <div id="vlc-btn" class="btn-icon">
-                <i class="bi bi-cone-striped" style="color: #ff8800;"></i>
-                <span>VLC</span>
-            </div>
-            <div id="mx-player-btn" class="btn-icon">
-                <i class="bi bi-play-circle" style="color: #2196f3;"></i>
-                <span>MX Player</span>
-            </div>
-            <div id="mx-pro-btn" class="btn-icon">
-                <i class="bi bi-play-circle-fill" style="color: #1976d2;"></i>
-                <span>MX Pro</span>
-            </div>
-        </div>
-
-        <div class="ios-section">
-            <div class="ios-title">
-                <i class="bi bi-apple"></i> For iOS Streaming
-            </div>
-            <ul class="guide-steps">
-                <li>Install VLC from the App Store if you haven't.</li>
-                <li>Copy the Stream URL using the button below.</li>
-                <li>Open <b>VLC</b> app and go to the <b>Network</b> tab.</li>
-                <li>Select <b>Open Network Stream</b>.</li>
-                <li>Paste the URL and start streaming.</li>
-            </ul>
-            <div class="ios-actions">
-                <button id="copy-btn" class="btn-ios btn-copy">
-                    <i class="bi bi-clipboard"></i> Copy Stream URL
-                </button>
-                <a href="https://apps.apple.com/app/vlc-for-mobile/id650377962" target="_blank" class="btn-ios">
-                    <i class="bi bi-download"></i> Get VLC for iOS
-                </a>
-            </div>
-        </div>
-
     </div>
-
-    <div id="toast" class="toast-msg">Copied to clipboard!</div>
 
     <script>
     (async () => {
-        const rawFile = window.location.pathname.split('/').pop() || '';
-        const encoded = encodeURIComponent(rawFile);
+        const fileLink = window.location.pathname.split('/').pop() || '';
+        const encoded = encodeURIComponent(fileLink);
         const fileNameEl = document.getElementById('file-name');
+        const fileSizeEl = document.getElementById('file-size');
+        const audioPoster = document.getElementById('audio-poster');
+        const infoContainer = document.querySelector('.info-container');
         const streamUrl = `${location.origin}/stream/${encoded}`;
-
-        function makeBreakableName(name) {
-            if (!name) return '';
-            return name.replace(/\./g, '.\u200B');
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.style.display = 'block';
-            setTimeout(() => { toast.style.display = 'none'; }, 2000);
-        }
-
-        async function copyToClipboard() {
-            try {
-                await navigator.clipboard.writeText(streamUrl);
-                showToast('URL Copied!');
-            } catch (err) {
-                console.error('Failed to copy: ', err);
-                // Fallback for older browsers
-                const el = document.createElement('textarea');
-                el.value = streamUrl;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
-                showToast('URL Copied!');
-            }
-        }
-
-        function setupButtons() {
-            document.getElementById('mx-player-btn').addEventListener('click', () => {
-                window.open(`/play/mx/${encoded}`, '_blank');
-            });
-            document.getElementById('mx-pro-btn').addEventListener('click', () => {
-                window.open(`/play/mxpro/${encoded}`, '_blank');
-            });
-            document.getElementById('vlc-btn').addEventListener('click', () => {
-                window.open(`/play/vlc/${encoded}`, '_blank');
-            });
-            document.getElementById('copy-btn').addEventListener('click', copyToClipboard);
-        }
-
-        // Disable right-click/long-press menu
-        window.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        }, false);
+        const storageKey = `playback_time_${fileLink}`;
 
         async function fetchDetails() {
             try {
@@ -288,18 +123,103 @@
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 const details = await res.json();
 
-                const originalName = details.file_name || rawFile;
-                fileNameEl.innerText = makeBreakableName(originalName);
-                fileNameEl.title = originalName;
-                document.getElementById('file-size').innerText = details.file_size || '';
+                const fileName = details.file_title || '';
+                const fileSize = details.file_artist || '';
+
+                document.title = fileName || 'Stream Player';
+
+                fileNameEl.innerText = fileName ? fileName : '';
+                fileSizeEl.innerText = fileSize;
+
+                // ✅ Hide info container if no data
+                if (!fileName && !fileSize) {
+                    infoContainer.classList.add('hidden');
+                } else {
+                    infoContainer.classList.remove('hidden');
+                }
+
+                if (details.mime_type && details.mime_type.startsWith('audio/') && details.poster_url) {
+                    audioPoster.src = details.poster_url;
+                    audioPoster.style.display = 'block';
+                }
+
+                const art = new Artplayer({
+                    container: '#artplayer',
+                    url: streamUrl,
+                    title: fileName,
+                    poster: details.poster_url || '',
+                    volume: 0.7,
+                    isLive: false,
+                    muted: false,
+                    autoplay: false,
+                    pip: true,
+                    autoSize: false,
+                    autoMini: true,
+                    screenshot: true,
+                    setting: true,
+                    loop: false,
+                    flip: true,
+                    playbackRate: true,
+                    aspectRatio: true,
+                    fullscreen: true,
+                    fullscreenWeb: true,
+                    subtitleOffset: true,
+                    miniProgressBar: true,
+                    mutex: true,
+                    backdrop: true,
+                    playsInline: true,
+                    autoPlayback: true,
+                    autoOrientation: true,
+                    airplay: true,
+                    theme: '#ff0057',
+                    lang: 'en',
+                    moreVideoAttr: {
+                        crossOrigin: 'anonymous',
+                    },
+                    subtitle: details.subtitle_url ? {
+                        url: details.subtitle_url,
+                        type: 'srt',
+                        style: {
+                            color: '#fff',
+                            fontSize: '20px',
+                        },
+                        encoding: 'utf-8',
+                    } : {},
+                });
+
+                const savedTime = localStorage.getItem(storageKey);
+                if (savedTime) {
+                    art.on('ready', () => {
+                        art.currentTime = parseFloat(savedTime);
+                    });
+                }
+
+                art.on('video:timeupdate', () => {
+                    const currentTime = Math.floor(art.currentTime);
+                    if (currentTime % 5 === 0) {
+                        localStorage.setItem(storageKey, art.currentTime);
+                    }
+                });
+
+                art.on('video:pause', () => {
+                    localStorage.setItem(storageKey, art.currentTime);
+                });
+
+                window.addEventListener('beforeunload', () => {
+                    localStorage.setItem(storageKey, art.currentTime);
+                });
+
             } catch (error) {
                 console.error("Failed to fetch file details:", error);
-                fileNameEl.innerText = makeBreakableName(rawFile);
-                document.getElementById('file-size').innerText = 'Unknown size';
+                fileNameEl.innerText = "Error loading file details";
+                infoContainer.classList.remove('hidden'); // show error if needed
             }
         }
 
-        setupButtons();
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        }, false);
+
         fetchDetails();
     })();
     </script>
