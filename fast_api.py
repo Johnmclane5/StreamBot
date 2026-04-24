@@ -37,9 +37,9 @@ async def decode_file_link(file_link: str) -> tuple[int, int, int]:
         padding = '=' * (-len(file_link) % 4)
         decoded = base64.urlsafe_b64decode(file_link + padding).decode()
         parts = list(map(int, decoded.split("_")))
-        if len(parts) == 2:
+        #if len(parts) == 2:
             # Fallback for old links or links without user_id
-            return parts[0], parts[1], 0
+            #return parts[0], parts[1], 0
         return parts[0], parts[1], parts[2]
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid file link")
