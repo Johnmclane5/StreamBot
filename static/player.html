@@ -8,6 +8,8 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- ArtPlayer JS -->
+    <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
 
     <style>
         /* Always Dark Mode */
@@ -20,10 +22,41 @@
         a, button { color: inherit; }
 
         .wrapper {
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
-            padding: 2rem 1rem;
+            padding: 1rem;
             text-align: center;
+        }
+
+        .artplayer-app {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .external-note {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 1.5rem;
+            background: #111;
+            padding: 0.5rem;
+            border-radius: 0.4rem;
+            border-left: 3px solid #ffc107;
+        }
+
+        .recommended-badge {
+            font-size: 0.7rem;
+            background: #28a745;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            font-weight: bold;
         }
 
         .info-container {
@@ -65,6 +98,7 @@
         }
 
         .btn-icon {
+            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -181,6 +215,12 @@
 <body>
     <div class="wrapper">
 
+        <div class="artplayer-app" id="artplayer"></div>
+
+        <div class="external-note">
+            <i class="bi bi-info-circle-fill"></i> No sound or subtitle? Try below external players.
+        </div>
+
         <div class="info-container">
             <h3 id="file-name">Loading...</h3>
             <p id="file-size"></p>
@@ -190,6 +230,7 @@
         
         <div class="actions-container">
             <div id="vlc-btn" class="btn-icon">
+                <span class="recommended-badge">Recommended</span>
                 <i class="bi bi-cone-striped" style="color: #ff8800;"></i>
                 <span>VLC</span>
             </div>
@@ -234,6 +275,7 @@
         const encoded = encodeURIComponent(rawFile);
         const fileNameEl = document.getElementById('file-name');
         const streamUrl = `${location.origin}/stream/${encoded}`;
+        let art = null;
 
         function makeBreakableName(name) {
             if (!name) return '';
@@ -292,11 +334,88 @@
                 fileNameEl.innerText = makeBreakableName(originalName);
                 fileNameEl.title = originalName;
                 document.getElementById('file-size').innerText = details.file_size || '';
+
+                initArtPlayer(details);
             } catch (error) {
                 console.error("Failed to fetch file details:", error);
                 fileNameEl.innerText = makeBreakableName(rawFile);
                 document.getElementById('file-size').innerText = 'Unknown size';
+                initArtPlayer({});
             }
+        }
+
+        function initArtPlayer(details) {
+            const storageKey = `artplayer_resume_${rawFile}`;
+            const savedTime = localStorage.getItem(storageKey) || 0;
+
+            art = new Artplayer({
+                container: '#artplayer',
+                url: streamUrl,
+                type: details.mime_type?.split('/')[1] || 'mp4',
+                title: details.file_name || 'Stream',
+                poster: '',
+                volume: 0.5,
+                isLive: false,
+                muted: false,
+                autoplay: false,
+                pip: true,
+                autoSize: false,
+                autoMini: true,
+                screenshot: true,
+                setting: true,
+                loop: false,
+                flip: true,
+                playbackRate: true,
+                aspectRatio: true,
+                fullscreen: true,
+                fullscreenWeb: true,
+                subtitleOffset: true,
+                miniProgressBar: true,
+                mutex: true,
+                backdrop: true,
+                playsInline: true,
+                autoPlayback: true,
+                airplay: true,
+                subtitle: details.subtitle_url ? {
+                    url: details.subtitle_url,
+                    type: 'srt',
+                    style: {
+                        color: '#fff',
+                        fontSize: '20px',
+                    },
+                    encoding: 'utf-8',
+                } : {},
+                moreVideoAttr: {
+                    crossOrigin: 'anonymous',
+                },
+            });
+
+            art.on('ready', () => {
+                if (savedTime > 0) {
+                    art.currentTime = parseFloat(savedTime);
+                }
+            });
+
+            art.on('video:timeupdate', () => {
+                localStorage.setItem(storageKey, art.currentTime);
+            });
+
+            // Auto-orientation on fullscreen
+            art.on('fullscreen', (state) => {
+                if (state && screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                } else if (!state && screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            });
+
+            art.on('fullscreenWeb', (state) => {
+                if (state && screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                } else if (!state && screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            });
         }
 
         setupButtons();

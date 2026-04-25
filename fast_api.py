@@ -297,7 +297,7 @@ async def serve_subtitle(file_link: str, request: Request):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     media_streamer, _, _, file_size, _ = await get_file_stream(channel_id, message_id, request)
     headers = {
-        "Content-Type": "text/plain",
+        "Content-Type": "application/x-subrip",
         "Content-Length": str(file_size),
     }
     return StreamingResponse(media_streamer(), headers=headers)
