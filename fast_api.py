@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pyrogram.errors import ChannelInvalid, FloodWait, RPCError, AuthBytesInvalid
+from pyrogram.errors import ChannelInvalid, FloodWait, RPCError, AuthBytesInvalid, FileReferenceExpired
 from pyrogram.errors.exceptions.internal_server_error_500 import Timeout
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
@@ -106,7 +106,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
             message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
             if message:
                 break 
-        except (FloodWait, Timeout, RPCError, AuthBytesInvalid):
+        except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired):
             worker_manager.release_worker(worker.id)
             worker_manager.put_worker_on_cooldown(worker.id)
             continue
@@ -150,7 +150,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
 
                 if chunk is None:
                     # Cache miss: Start streaming from the worker
-                    nonlocal worker
+                    nonlocal worker, message
                     for attempt in range(1, MAX_RETRIES + 1):
                         try:
                             stream = worker.stream_media(message, offset=current_chunk_index)
@@ -179,7 +179,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
                             # ✅ Success, exit retry loop
                             break
 
-                        except (FloodWait, Timeout, RPCError, AuthBytesInvalid) as e:
+                        except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired) as e:
                             logger.warning(f"Worker {worker.id} failed with {e.__class__.__name__}. Putting on cooldown.")
                             worker_manager.release_worker(worker.id)
                             worker_manager.put_worker_on_cooldown(worker.id)
@@ -190,7 +190,18 @@ async def get_file_stream(channel_id, message_id, request: Request):
                                 raise HTTPException(status_code=503, detail="All workers are busy or down.")
                             
                             worker = new_worker
-                            logger.info(f"Switched to new worker {worker.id}")
+                            logger.info(f"Switched to new worker {worker.id}. Re-fetching message to refresh file reference.")
+                            
+                            try:
+                                message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
+                                if not message:
+                                    raise HTTPException(status_code=404, detail="File not found during re-fetch.")
+                            except Exception as re_fetch_error:
+                                logger.error(f"Failed to re-fetch message with new worker {worker.id}: {re_fetch_error}")
+                                worker_manager.release_worker(worker.id)
+                                worker_manager.put_worker_on_cooldown(worker.id)
+                                continue # Try next retry attempt with potentially another worker
+
                             continue
 
                         except Exception as e:
@@ -238,7 +249,7 @@ async def stream_file(file_link: str, request: Request):
                 message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
                 if message:
                     break
-            except (FloodWait, Timeout, RPCError):
+            except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired):
                 worker_manager.release_worker(worker.id)
                 worker_manager.put_worker_on_cooldown(worker.id)
                 continue
@@ -327,7 +338,7 @@ async def get_file_details(file_link: str):
             message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
             if message:
                 break
-        except (FloodWait, Timeout, RPCError, AuthBytesInvalid):
+        except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired):
             worker_manager.release_worker(worker.id)
             worker_manager.put_worker_on_cooldown(worker.id)
             continue
