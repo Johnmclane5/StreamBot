@@ -13,7 +13,7 @@ from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
 from app import get_worker_manager, cache, Bot
-from config import MY_DOMAIN, CHUNK_SIZE
+from config import MY_DOMAIN, CHUNK_SIZE, OWNER_ID
 from db import files_col, auth_users_col
 
 api = FastAPI()
