@@ -4,6 +4,6 @@ from config import MONGO_URI
 
 # MongoDB setup
 mongo = AsyncIOMotorClient(MONGO_URI)
-db = mongo["tg_bot"]
+db = mongo["sharing_bot"]
 files_col = db["files"]
 auth_users_col = db["auth_users"]
