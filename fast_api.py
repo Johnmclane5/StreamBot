@@ -17,7 +17,6 @@ from config import MY_DOMAIN, CHUNK_SIZE, OWNER_ID
 from db import files_col, auth_users_col
 
 api = FastAPI()
-api.mount("/static", StaticFiles(directory="static"), name="static")
 api.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
