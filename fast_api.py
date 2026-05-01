@@ -13,8 +13,9 @@ from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
 from utility import human_readable_size
 from app import get_worker_manager, cache, Bot
-from config import MY_DOMAIN, CHUNK_SIZE, OWNER_ID
+from config import MY_DOMAIN, CHUNK_SIZE, OWNER_ID, SECRET_KEY
 from db import files_col, auth_users_col
+from cryptography.fernet import Fernet
 
 api = FastAPI()
 #api.mount("/static", StaticFiles(directory="static"), name="static")
@@ -35,11 +36,10 @@ logger = logging.getLogger(__name__)
 async def decode_file_link(file_link: str) -> tuple[int, int, int]:
     try:
         padding = '=' * (-len(file_link) % 4)
-        decoded = base64.urlsafe_b64decode(file_link + padding).decode()
-        parts = list(map(int, decoded.split("_")))
-        #if len(parts) == 2:
-            # Fallback for old links or links without user_id
-            #return parts[0], parts[1], 0
+        encrypted_data = base64.urlsafe_b64decode(file_link + padding)
+        f = Fernet(SECRET_KEY.encode())
+        decrypted = f.decrypt(encrypted_data).decode()
+        parts = list(map(int, decrypted.split("_")))
         return parts[0], parts[1], parts[2]
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid file link")
