@@ -37,13 +37,14 @@ async def decode_file_link(file_link: str) -> tuple[int, int, int]:
     try:
         padding = '=' * (-len(file_link) % 4)
         encrypted_data = base64.urlsafe_b64decode(file_link + padding)
-        f = Fernet(SECRET_KEY.encode())
+        # Derive a valid 32-byte Fernet key from SECRET_KEY
+        key = base64.urlsafe_b64encode(hashlib.sha256(SECRET_KEY.encode()).digest())
+        f = Fernet(key)
         decrypted = f.decrypt(encrypted_data).decode()
         parts = list(map(int, decrypted.split("_")))
         return parts[0], parts[1], parts[2]
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid file link")
-
+             raise HTTPException(status_code=400, detail="Invalid file link")
 
 async def is_user_authorized(user_id):
     """Check if a user is authorized."""
