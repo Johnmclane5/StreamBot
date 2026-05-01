@@ -11,11 +11,10 @@ from pyrogram.errors import ChannelInvalid, FloodWait, RPCError, AuthBytesInvali
 from pyrogram.errors.exceptions.internal_server_error_500 import Timeout
 from starlette.status import HTTP_404_NOT_FOUND
 from fastapi.staticfiles import StaticFiles
-from utility import human_readable_size
+from utility import human_readable_size, decode_file_link, is_user_authorized
 from app import get_worker_manager, cache, Bot
-from config import MY_DOMAIN, CHUNK_SIZE, OWNER_ID, SECRET_KEY
+from config import MY_DOMAIN, CHUNK_SIZE, OWNER_ID
 from db import files_col, auth_users_col
-from cryptography.fernet import Fernet
 
 api = FastAPI()
 #api.mount("/static", StaticFiles(directory="static"), name="static")
@@ -31,42 +30,6 @@ MAX_RETRIES = 3
 RETRY_DELAY = 3     
 
 logger = logging.getLogger(__name__)
-
-
-async def decode_file_link(file_link: str) -> tuple[int, int, int]:
-    try:
-        padding = '=' * (-len(file_link) % 4)
-        encrypted_data = base64.urlsafe_b64decode(file_link + padding)
-        # Derive a valid 32-byte Fernet key from SECRET_KEY
-        key = base64.urlsafe_b64encode(hashlib.sha256(SECRET_KEY.encode()).digest())
-        f = Fernet(key)
-        decrypted = f.decrypt(encrypted_data).decode()
-        parts = list(map(int, decrypted.split("_")))
-        return parts[0], parts[1], parts[2]
-    except Exception:
-             raise HTTPException(status_code=400, detail="Invalid file link")
-
-async def is_user_authorized(user_id):
-    """Check if a user is authorized."""
-    if user_id == 0:
-        return False
-    if user_id == OWNER_ID:
-        return True
-    doc = await auth_users_col.find_one({"user_id": user_id})
-    if not doc:
-        return False
-    expiry = doc["expiry"]
-    if isinstance(expiry, str):
-        try:
-            expiry = datetime.fromisoformat(expiry)
-        except Exception:
-            return False
-    if isinstance(expiry, datetime) and expiry.tzinfo is None:
-        expiry = expiry.replace(tzinfo=timezone.utc)
-    if expiry < datetime.now(timezone.utc):
-        return False
-    return True
-
 
 async def get_file_properties(message):
     channel_id = message.chat.id
@@ -234,10 +197,12 @@ async def get_file_stream(channel_id, message_id, request: Request):
 @api.get("/stream/{file_link}")
 @api.head("/stream/{file_link}")
 async def stream_file(file_link: str, request: Request):
-    channel_id, message_id, user_id = await decode_file_link(file_link)
+    _id, user_id, otp = await decode_file_link(file_link)
     
-    if not await is_user_authorized(user_id):
+    if not await is_user_authorized(user_id, otp):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
+
+    file_doc = await files_col.find_one({"_id": _id})
 
     # If it's a HEAD request, we can release early without getting the full stream
     if request.method == "HEAD":
@@ -249,7 +214,7 @@ async def stream_file(file_link: str, request: Request):
             if not worker:
                 raise HTTPException(status_code=503, detail="All workers are busy.")
             try:
-                message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
+                message = await worker.get_messages(chat_id=file_doc['channel_id'], message_ids=file_doc['message_id'])
                 if message:
                     break
             except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired):
@@ -306,10 +271,13 @@ async def download_file(file_link: str, request: Request):
 
 @api.get("/subtitle/{file_link}")
 async def serve_subtitle(file_link: str, request: Request):
-    channel_id, message_id, user_id = await decode_file_link(file_link)
-    if not await is_user_authorized(user_id):
+    _id, user_id, otp = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id, otp):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
-    media_streamer, _, _, file_size, _ = await get_file_stream(channel_id, message_id, request)
+
+    file_doc = await files_col.find_one({"_id": _id})
+
+    media_streamer, _, _, file_size, _ = await get_file_stream(file_doc['channel_id'], file_doc['message_id'], request)
     headers = {
         "Content-Type": "application/x-subrip",
         "Content-Length": str(file_size),
@@ -318,16 +286,19 @@ async def serve_subtitle(file_link: str, request: Request):
 
 @api.get("/player/{file_link}")
 async def play_video(file_link: str):
-    _, _, user_id = await decode_file_link(file_link)
-    if not await is_user_authorized(user_id):
+    _, user_id, otp = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id, otp):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     return FileResponse(f"static/player.html")
 
 @api.get("/details/{file_link}")
 async def get_file_details(file_link: str):
-    channel_id, message_id, user_id = await decode_file_link(file_link)
-    if not await is_user_authorized(user_id):
+    _id, user_id, otp = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id, otp):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
+
+    file_doc = await files_col.find_one({"_id": _id})
+
     worker_manager = get_worker_manager()
     message = None
     worker = None
@@ -338,7 +309,7 @@ async def get_file_details(file_link: str):
             raise HTTPException(status_code=503, detail="All workers are busy.")
 
         try:
-            message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
+            message = await worker.get_messages(chat_id=file_doc['channel_id'], message_ids=file_doc['message_id'])
             if message:
                 break
         except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired):
@@ -384,8 +355,8 @@ async def get_file_details(file_link: str):
     
 @api.get("/play/{player}/{file_link}")
 async def play_in_player(player: str, file_link: str):
-    _, _, user_id = await decode_file_link(file_link)
-    if not await is_user_authorized(user_id):
+    _, user_id, otp = await decode_file_link(file_link)
+    if not await is_user_authorized(user_id, otp):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
     stream_url = f"{MY_DOMAIN}/stream/{file_link}"
     if player == "mx":
