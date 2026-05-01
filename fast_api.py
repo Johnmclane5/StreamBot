@@ -21,7 +21,7 @@ from fastapi.encoders import ENCODERS_BY_TYPE
 ENCODERS_BY_TYPE[ObjectId] = str
 
 api = FastAPI()
-#api.mount("/static", StaticFiles(directory="static"), name="static")
+api.mount("/static", StaticFiles(directory="static"), name="static")
 api.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

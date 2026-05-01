@@ -92,22 +92,24 @@ async def auto_delete_message(user_message, bot_message):
     except Exception as e:
         pass
 
-async def decode_file_link(file_link: str) -> tuple[str, int, str]:
+async def decode_file_link(encoded_link):
+    """
+    Decodes the base64 encoded link into its components.
+    """
     try:
-        padding = '=' * (-len(file_link) % 4)
-        decoded = base64.urlsafe_b64decode(file_link + padding).decode()
-        parts = decoded.split("_")
-        if len(parts) != 3:
-            raise ValueError("Invalid format")
-        _id, user_id, otp = parts[0], int(parts[1]), parts[2]
-        return _id, user_id, otp
-    except Exception:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="Invalid file link")
-        
+        padding = "=" * (4 - len(encoded_link) % 4)
+        decoded_bytes = base64.urlsafe_b64decode(encoded_link + padding)
+        decoded_str = decoded_bytes.decode()
+        file_id, user_id, token = decoded_str.split("_")
+        return file_id, int(user_id), token
+    except Exception as e:
+        logger.error(f"Error decoding file link: {e}")
+        return None, None, None
+
+
 async def is_user_authorized(user_id, otp):
     """Check if a user is authorized."""
-    query = {"user_id": user_id, "otp": otp}
+    query = {"user_id": user_id, "token": otp}
     
     # Sort by expiry descending to handle potential duplicate records robustly
     doc = await auth_users_col.find(query).sort("expiry", -1).to_list(length=1)
