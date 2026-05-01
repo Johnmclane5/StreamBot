@@ -16,6 +16,7 @@ from app import get_worker_manager, cache, Bot
 from config import MY_DOMAIN, CHUNK_SIZE, OWNER_ID
 from db import files_col, auth_users_col
 from bson.objectid import ObjectId
+from fastapi.encoders import ENCODERS_BY_TYPE
 
 ENCODERS_BY_TYPE[ObjectId] = str
 
