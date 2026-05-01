@@ -15,6 +15,9 @@ from utility import human_readable_size, decode_file_link, is_user_authorized
 from app import get_worker_manager, cache, Bot
 from config import MY_DOMAIN, CHUNK_SIZE, OWNER_ID
 from db import files_col, auth_users_col
+from bson.objectid import ObjectId
+
+ENCODERS_BY_TYPE[ObjectId] = str
 
 api = FastAPI()
 #api.mount("/static", StaticFiles(directory="static"), name="static")
@@ -202,7 +205,10 @@ async def stream_file(file_link: str, request: Request):
     if not await is_user_authorized(user_id, otp):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
 
-    file_doc = await files_col.find_one({"_id": _id})
+    file_doc = await files_col.find_one({"_id": ObjectId(_id)})
+
+    if not file_doc:
+        raise HTTPException(status_code=403, detail="Stream Not Available")
 
     # If it's a HEAD request, we can release early without getting the full stream
     if request.method == "HEAD":
@@ -275,7 +281,10 @@ async def serve_subtitle(file_link: str, request: Request):
     if not await is_user_authorized(user_id, otp):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
 
-    file_doc = await files_col.find_one({"_id": _id})
+    file_doc = await files_col.find_one({"_id": ObjectId(_id)})
+
+    if not file_doc:
+         raise HTTPException(status_code=403, detail="Subtitle not available")
 
     media_streamer, _, _, file_size, _ = await get_file_stream(file_doc['channel_id'], file_doc['message_id'], request)
     headers = {
@@ -297,7 +306,10 @@ async def get_file_details(file_link: str):
     if not await is_user_authorized(user_id, otp):
         raise HTTPException(status_code=403, detail="Unauthorized user or subscription expired")
 
-    file_doc = await files_col.find_one({"_id": _id})
+    file_doc = await files_col.find_one({"_id": ObjectId(_id)})
+
+    if not file_doc:
+         raise HTTPException(status_code=403, detail="Details not available")
 
     worker_manager = get_worker_manager()
     message = None
