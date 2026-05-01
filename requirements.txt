@@ -7,3 +7,4 @@ TgCrypto==1.2.5
 uvicorn==0.37.0
 diskcache
 motor==3.3.2
+cryptography
