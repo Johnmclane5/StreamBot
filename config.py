@@ -51,6 +51,7 @@ LOG_CHANNEL_ID = int(os.getenv('LOG_CHANNEL_ID'))
 MY_DOMAIN = os.getenv('MY_DOMAIN')
 
 MONGO_URI = os.getenv("MONGO_URI")
+SECRET_KEY = os.getenv('SECRET_KEY', '7Jz5hR6v8K9m2n4pQ3wE1rT4yU5iO6pA7sS8dD9fG0h=')
 
 # Caching configuration
 CACHE_SIZE = 16 * 1024 * 1024 * 1024  # 16 GB
