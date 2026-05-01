@@ -238,7 +238,7 @@ async def stream_file(file_link: str, request: Request):
         worker_manager.release_worker(worker.id)
         return Response(status_code=200, headers={"Content-Length": str(file_size), "Accept-Ranges": "bytes"})
 
-    media_streamer, start, end, file_size, file_name = await get_file_stream(channel_id, message_id, request)
+    media_streamer, start, end, file_size, file_name = await get_file_stream(file_doc['channel_id'], file_doc['message_id'], request)
 
     mime_type, _ = mimetypes.guess_type(file_name)
     if mime_type is None:
