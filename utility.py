@@ -4,7 +4,7 @@ import asyncio
 import base64
 import logging
 from config import *
-
+from db import auth_users_col
 # =========================
 # Constants & Globals
 # =========================
@@ -104,28 +104,6 @@ async def decode_file_link(file_link: str) -> tuple[str, int, str]:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Invalid file link")
         
-async def is_user_authorized(user_id, otp=None):
-    """Check if a user is authorized."""
-    query = {"user_id": user_id}
-    if otp:
-        query["otp"] = otp
-    # Sort by expiry descending to handle potential duplicate records robustly
-    doc = await auth_users_col.find(query).sort("expiry", -1).to_list(length=1)
-    if not doc:
-        return False
-    doc = doc[0]
-    expiry = doc["expiry"]
-    if isinstance(expiry, str):
-        try:
-            expiry = datetime.fromisoformat(expiry)
-        except Exception:
-            return False
-    if isinstance(expiry, datetime) and expiry.tzinfo is None:
-        expiry = expiry.replace(tzinfo=timezone.utc)
-    if expiry < datetime.now(timezone.utc):
-        return False
-    return True
-
 async def is_user_authorized(user_id, otp):
     """Check if a user is authorized."""
     query = {"user_id": user_id, "otp": otp}
