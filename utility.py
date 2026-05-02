@@ -109,7 +109,7 @@ async def decode_file_link(encoded_link):
 
 async def is_user_authorized(user_id, otp):
     """Check if a user is authorized."""
-    query = {"user_id": user_id, "token": otp}
+    query = {"user_id": user_id, "otp": otp}
     
     # Sort by expiry descending to handle potential duplicate records robustly
     doc = await auth_users_col.find(query).sort("expiry", -1).to_list(length=1)
