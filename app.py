@@ -11,9 +11,19 @@ cache = Cache(CACHE_DIR, CACHE_SIZE)
 
 class Bot(Client):
     def __init__(self, *args, **kwargs):
-        self.id = kwargs.pop("id", None)
+        self.worker_id = kwargs.pop("worker_id", None)
         super().__init__(*args, **kwargs)
         self.copy_lock = asyncio.Lock()
+
+    @property
+    def telegram_id(self):
+        if self.me:
+            return self.me.id
+        return int(self.bot_token.split(":")[0])
+
+    @property
+    def username(self):
+        return self.me.username if self.me else None
 
     def sanitize_query(self, query):
         """Sanitizes and normalizes a search query for consistent matching of 'and' and '&'."""
@@ -41,7 +51,7 @@ bot = Bot(
 
 # Initialize worker bots
 worker_bots = [
-    Bot(f"worker_{i}", api_id=API_ID, api_hash=API_HASH, bot_token=token, sleep_threshold=60, no_updates=True, max_concurrent_transmissions=4, id=i)
+    Bot(f"worker_{i}", api_id=API_ID, api_hash=API_HASH, bot_token=token, sleep_threshold=60, no_updates=True, max_concurrent_transmissions=4, worker_id=i)
     for i, token in enumerate(WORKER_BOT_TOKENS)
 ]
 
@@ -51,7 +61,7 @@ worker_manager = None
 class WorkerManager:
     def __init__(self, workers):
         self.workers = workers
-        self.worker_tasks = {worker.id: 0 for worker in workers}
+        self.worker_tasks = {worker.worker_id: 0 for worker in workers}
         self.cooldowns = {}
         self.COOLDOWN_PERIOD = 60  # in seconds
 
@@ -59,15 +69,15 @@ class WorkerManager:
         now = time.time()
         available_workers = [
             w for w in self.workers 
-            if w.id not in self.cooldowns or now - self.cooldowns[w.id] > self.COOLDOWN_PERIOD
+            if w.worker_id not in self.cooldowns or now - self.cooldowns[w.worker_id] > self.COOLDOWN_PERIOD
         ]
 
         if not available_workers:
             return None
 
         # Find the worker with the minimum number of tasks
-        worker = min(available_workers, key=lambda w: self.worker_tasks[w.id])
-        self.worker_tasks[worker.id] += 1
+        worker = min(available_workers, key=lambda w: self.worker_tasks[w.worker_id])
+        self.worker_tasks[worker.worker_id] += 1
         return worker
 
     def release_worker(self, worker_id):
