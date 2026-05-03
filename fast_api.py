@@ -77,20 +77,20 @@ async def get_file_stream(channel_id, message_id, request: Request):
             if message:
                 break 
         except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired):
-            worker_manager.release_worker(worker.id)
-            worker_manager.put_worker_on_cooldown(worker.id)
+            worker_manager.release_worker(worker.worker_id)
+            worker_manager.put_worker_on_cooldown(worker.worker_id)
             continue
         except ChannelInvalid:
-            worker_manager.release_worker(worker.id)
+            worker_manager.release_worker(worker.worker_id)
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
     else:
         # If loop finishes without success
         if worker:
-            worker_manager.release_worker(worker.id)
+            worker_manager.release_worker(worker.worker_id)
         raise HTTPException(status_code=500, detail="All workers failed to fetch message.")
 
     if not message:
-        worker_manager.release_worker(worker.id)
+        worker_manager.release_worker(worker.worker_id)
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="File not found")
 
     file_name, file_size = await get_file_properties(message)
@@ -150,9 +150,9 @@ async def get_file_stream(channel_id, message_id, request: Request):
                             break
 
                         except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired) as e:
-                            logger.warning(f"Worker {worker.id} failed with {e.__class__.__name__}. Putting on cooldown.")
-                            worker_manager.release_worker(worker.id)
-                            worker_manager.put_worker_on_cooldown(worker.id)
+                            logger.warning(f"Worker {worker.worker_id} failed with {e.__class__.__name__}. Putting on cooldown.")
+                            worker_manager.release_worker(worker.worker_id)
+                            worker_manager.put_worker_on_cooldown(worker.worker_id)
                             
                             # Try to get a new worker
                             new_worker = worker_manager.get_worker()
@@ -160,23 +160,23 @@ async def get_file_stream(channel_id, message_id, request: Request):
                                 raise HTTPException(status_code=503, detail="All workers are busy or down.")
                             
                             worker = new_worker
-                            logger.info(f"Switched to new worker {worker.id}. Re-fetching message to refresh file reference.")
+                            logger.info(f"Switched to new worker {worker.worker_id}. Re-fetching message to refresh file reference.")
                             
                             try:
                                 message = await worker.get_messages(chat_id=channel_id, message_ids=message_id)
                                 if not message:
                                     raise HTTPException(status_code=404, detail="File not found during re-fetch.")
                             except Exception as re_fetch_error:
-                                logger.error(f"Failed to re-fetch message with new worker {worker.id}: {re_fetch_error}")
-                                worker_manager.release_worker(worker.id)
-                                worker_manager.put_worker_on_cooldown(worker.id)
+                                logger.error(f"Failed to re-fetch message with new worker {worker.worker_id}: {re_fetch_error}")
+                                worker_manager.release_worker(worker.worker_id)
+                                worker_manager.put_worker_on_cooldown(worker.worker_id)
                                 continue # Try next retry attempt with potentially another worker
 
                             continue
 
                         except Exception as e:
-                            logger.error(f"Unexpected error with worker {worker.id}: {e}", exc_info=True)
-                            worker_manager.put_worker_on_cooldown(worker.id)
+                            logger.error(f"Unexpected error with worker {worker.worker_id}: {e}", exc_info=True)
+                            worker_manager.put_worker_on_cooldown(worker.worker_id)
                             raise HTTPException(status_code=500, detail="Unexpected error during streaming.")
                 else:
                     # Cache hit: Serve the chunk from the cache
@@ -192,7 +192,7 @@ async def get_file_stream(channel_id, message_id, request: Request):
                     bytes_sent += len(chunk)
                     current_chunk_index += 1
         finally:
-            worker_manager.release_worker(worker.id)
+            worker_manager.release_worker(worker.worker_id)
 
 
     return media_streamer, start, end, file_size, file_name
@@ -225,24 +225,24 @@ async def stream_file(file_link: str, request: Request):
                 if message:
                     break
             except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired):
-                worker_manager.release_worker(worker.id)
-                worker_manager.put_worker_on_cooldown(worker.id)
+                worker_manager.release_worker(worker.worker_id)
+                worker_manager.put_worker_on_cooldown(worker.worker_id)
                 continue
             except ChannelInvalid:
-                worker_manager.release_worker(worker.id)
+                worker_manager.release_worker(worker.worker_id)
                 raise HTTPException(status_code=404, detail="Channel not found")
             except Exception as e:
-                worker_manager.release_worker(worker.id)
-                worker_manager.put_worker_on_cooldown(worker.id)
+                worker_manager.release_worker(worker.worker_id)
+                worker_manager.put_worker_on_cooldown(worker.worker_id)
                 raise HTTPException(status_code=500, detail=f"Worker error: {e}")
         
         if not message:
             if worker:
-                worker_manager.release_worker(worker.id)
+                worker_manager.release_worker(worker.worker_id)
             raise HTTPException(status_code=404, detail="File not found after retries.")
 
         _, file_size = await get_file_properties(message)
-        worker_manager.release_worker(worker.id)
+        worker_manager.release_worker(worker.worker_id)
         return Response(status_code=200, headers={"Content-Length": str(file_size), "Accept-Ranges": "bytes"})
 
     media_streamer, start, end, file_size, file_name = await get_file_stream(file_doc['channel_id'], file_doc['message_id'], request)
@@ -326,23 +326,23 @@ async def get_file_details(file_link: str):
             if message:
                 break
         except (FloodWait, Timeout, RPCError, AuthBytesInvalid, FileReferenceExpired):
-            worker_manager.release_worker(worker.id)
-            worker_manager.put_worker_on_cooldown(worker.id)
+            worker_manager.release_worker(worker.worker_id)
+            worker_manager.put_worker_on_cooldown(worker.worker_id)
             continue
         except ChannelInvalid:
-            worker_manager.release_worker(worker.id)
+            worker_manager.release_worker(worker.worker_id)
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Channel not found")
         except Exception as e:
-            worker_manager.release_worker(worker.id)
-            worker_manager.put_worker_on_cooldown(worker.id)
+            worker_manager.release_worker(worker.worker_id)
+            worker_manager.put_worker_on_cooldown(worker.worker_id)
             raise HTTPException(status_code=500, detail=f"Worker error: {e}")
 
     if not message:
         if worker:
-            worker_manager.release_worker(worker.id)
+            worker_manager.release_worker(worker.worker_id)
         raise HTTPException(status_code=404, detail="File not found after retries.")
     
-    worker_manager.release_worker(worker.id)
+    worker_manager.release_worker(worker.worker_id)
 
     file_name, file_size = await get_file_properties(message)
     mime_type, _ = mimetypes.guess_type(file_name)
